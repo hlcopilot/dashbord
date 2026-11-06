@@ -19,5 +19,6 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["vite.config.ts", "vite-plugin-local-archive.ts"]
+  "include": ["vite.config.ts", "vite-plugin-local-archive.ts"],
+  "exclude": ["functions"]
 }

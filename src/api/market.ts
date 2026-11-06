@@ -1,3 +1,4 @@
+import { apiUrl } from '@/api/base'
 import { getDayCumulativeTotal, syncIntradayArchive } from '@/api/intraday'
 import type { DailyTurnover, RangeKey, TurnoverSeriesResult } from '@/types/market'
 import { monthsAgo, toCompactYmd, yearsAgo } from '@/utils/date'
@@ -23,7 +24,9 @@ async function fetchSohuIndexAmountOnce(
   start: string,
   end: string,
 ): Promise<Map<string, number>> {
-  const url = `/api/sohu/hisHq?code=${code}&start=${start}&end=${end}&stat=1&order=A&period=d`
+  const url = apiUrl(
+    `/api/sohu/hisHq?code=${code}&start=${start}&end=${end}&stat=1&order=A&period=d`,
+  )
   const res = await fetch(url)
   if (!res.ok) {
     throw new Error(`${SOHU_LABEL[code]}行情请求失败: ${res.status}`)

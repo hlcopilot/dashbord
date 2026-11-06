@@ -6,7 +6,13 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy:pages": "npm run build && wrangler pages deploy dist --project-name=stock",
+    "deploy:worker": "wrangler deploy --config worker/wrangler.toml",
+    "deploy:cf": "npm run deploy:pages && npm run deploy:worker",
+    "cf:worker:dev": "wrangler dev --config worker/wrangler.toml",
+    "cf:kv:create": "wrangler kv namespace create INTRADAY_KV --config worker/wrangler.toml && wrangler kv namespace create INTRADAY_KV --preview --config worker/wrangler.toml",
+    "cf:kv:seed": "node scripts/seed-intraday-kv.mjs"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",
@@ -17,11 +23,13 @@
     "vue-echarts": "^8.3.2"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20251106.0",
     "@types/node": "^24.19.2",
     "@vitejs/plugin-vue": "^6.0.10",
     "@vue/tsconfig": "^0.9.1",
     "typescript": "~6.0.3",
     "vite": "^8.3.6",
-    "vue-tsc": "^3.3.14"
+    "vue-tsc": "^3.3.14",
+    "wrangler": "^4.45.3"
   }
 }

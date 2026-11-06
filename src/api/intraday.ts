@@ -1,3 +1,4 @@
+import { apiUrl } from '@/api/base'
 import type {
   DailyTurnover,
   IntradayPoint,
@@ -26,12 +27,13 @@ function sleep(ms: number) {
 }
 
 async function fetchEmTrends(secid: EmSecid, retries = 2): Promise<string[]> {
-  const url =
+  const url = apiUrl(
     `/api/eastmoney/api/qt/stock/trends2/get` +
-    `?fields1=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13` +
-    `&fields2=f51,f52,f53,f54,f55,f56,f57,f58` +
-    `&ut=fa5fd1943c7b386f172d6893dbfba10b` +
-    `&secid=${secid}&ndays=5&iscr=0&iscca=0`
+      `?fields1=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13` +
+      `&fields2=f51,f52,f53,f54,f55,f56,f57,f58` +
+      `&ut=fa5fd1943c7b386f172d6893dbfba10b` +
+      `&secid=${secid}&ndays=5&iscr=0&iscca=0`,
+  )
 
   let lastError: unknown
   for (let i = 0; i <= retries; i++) {
@@ -115,7 +117,7 @@ function dayTotal(minuteMap: Map<string, number>): number {
 async function loadLocalArchive(): Promise<Map<string, Map<string, number>>> {
   const out = new Map<string, Map<string, number>>()
   try {
-    const res = await fetch('/api/local/intraday/all')
+    const res = await fetch(apiUrl('/api/local/intraday/all'))
     if (!res.ok) return out
     const json = (await res.json()) as { days?: Record<string, LocalIntradayDay> }
     for (const [date, day] of Object.entries(json.days ?? {})) {
@@ -135,7 +137,7 @@ async function saveLocalDay(date: string, minuteMap: Map<string, number>) {
     totalYi: dayTotal(minuteMap),
   }
   try {
-    await fetch(`/api/local/intraday/${date}`, {
+    await fetch(apiUrl(`/api/local/intraday/${date}`), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),

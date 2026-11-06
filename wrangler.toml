@@ -1,0 +1,7 @@
+# Cloudflare Pages：仅托管 Vue 静态资源（dist）
+# API 走独立 Worker，见 worker/wrangler.toml
+# 文档：DEPLOY-CLOUDFLARE.md
+
+name = "stock"
+compatibility_date = "2025-11-01"
+pages_build_output_dir = "dist"

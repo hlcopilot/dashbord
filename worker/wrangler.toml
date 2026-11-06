@@ -1,0 +1,23 @@
+# API Worker（代理 + 分时 KV）
+# 文档：DEPLOY-CLOUDFLARE.md
+
+name = "stock-api"
+main = "src/index.ts"
+compatibility_date = "2025-11-01"
+
+# 分时归档 KV —— 先运行（在仓库根目录）：
+#   npm run cf:kv:create
+# 把返回的 id 填到下面，再 deploy:worker
+[[kv_namespaces]]
+binding = "INTRADAY_KV"
+id = "51c2a3e9dd2b4fafa2d3b3aeca36e199"
+preview_id = "2413ca5ebc324f0481e119d466f348cd"
+
+# 同域挂到 Pages 主机名（部署 Worker 后二选一）：
+# A) Dashboard → Workers → stock-api → Triggers → Add route
+#    Route: stock.pages.dev/api/*
+#    Zone: 若用 *.pages.dev，需用 Workers Routes 绑定自定义域，或用下面 routes（自有 Zone）
+# B) 自定义域名 Zone 内写：
+# [[routes]]
+# pattern = "dashbord.example.com/api/*"
+# zone_name = "example.com"

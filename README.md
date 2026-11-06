@@ -18,9 +18,24 @@ npm install
 npm run dev
 ```
 
-浏览器打开终端提示的本地地址（默认 `http://localhost:5173`）。
+浏览器打开终端提示的本地地址（默认 `http://localhost:5173`）。  
+同 Wi‑Fi 下手机可访问终端里的 Network 地址（已开启 `server.host`）。
 
 > 本地归档依赖 Vite 开发中间件，请用 `npm run dev`（或 `npm run preview`）访问，不要只用静态 `dist` 打开。
+
+## 云端部署（Cloudflare Pages + Worker）
+
+手机离电脑也能用：静态站上 **Pages**，`/api/*` 走独立 **Worker**；分时积累改存 KV。
+
+详见 **[DEPLOY-CLOUDFLARE.md](./DEPLOY-CLOUDFLARE.md)**。
+
+```bash
+npm install
+npx wrangler login
+npm run cf:kv:create          # 把 id 填进 worker/wrangler.toml
+npm run deploy:cf             # Pages + Worker
+# 无自定义域名：确认 .env.production 的 VITE_API_BASE = Worker 地址，再 deploy:pages
+```
 
 ## 功能
 

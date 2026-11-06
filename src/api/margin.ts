@@ -1,3 +1,4 @@
+import { apiUrl } from '@/api/base'
 import type { MarginDaily, MarginSeriesResult, RangeKey } from '@/types/market'
 import { monthsAgo, yearsAgo } from '@/utils/date'
 import { calcPercentile } from '@/utils/percentile'
@@ -24,12 +25,13 @@ function sleep(ms: number) {
 }
 
 async function fetchMarginPage(pageNumber: number, pageSize = 800): Promise<EmPageResult> {
-  const url =
+  const url = apiUrl(
     `/api/emdc/api/data/v1/get` +
-    `?reportName=RPTA_RZRQ_LSHJ` +
-    `&columns=DIM_DATE,RZRQYE,RZYE,RQYE` +
-    `&pageNumber=${pageNumber}&pageSize=${pageSize}` +
-    `&sortTypes=-1&sortColumns=DIM_DATE&source=WEB&client=WEB`
+      `?reportName=RPTA_RZRQ_LSHJ` +
+      `&columns=DIM_DATE,RZRQYE,RZYE,RQYE` +
+      `&pageNumber=${pageNumber}&pageSize=${pageSize}` +
+      `&sortTypes=-1&sortColumns=DIM_DATE&source=WEB&client=WEB`,
+  )
   const res = await fetch(url)
   if (!res.ok) throw new Error(`两融余额请求失败: ${res.status}`)
   return (await res.json()) as EmPageResult
@@ -62,8 +64,9 @@ async function fetchSseCloseMap(retries = 3): Promise<Map<string, number>> {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       // 拉长起点与成交额卡错开参数，降低同时打同一 URL 的概率
-      const url =
-        `/api/sohu/hisHq?code=zs_000001&start=20100101&end=20500101&stat=1&order=A&period=d`
+      const url = apiUrl(
+        `/api/sohu/hisHq?code=zs_000001&start=20100101&end=20500101&stat=1&order=A&period=d`,
+      )
       const res = await fetch(url)
       if (!res.ok) throw new Error(`上证指数请求失败: ${res.status}`)
       const data = (await res.json()) as Array<{
