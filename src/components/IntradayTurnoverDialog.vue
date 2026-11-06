@@ -97,11 +97,11 @@ const chartOption = computed(() => {
         const deltaText =
           p.deltaYi == null
             ? '—'
-            : `${p.deltaYi >= 0 ? '' : '-'}${formatAmountYi(Math.abs(p.deltaYi), 2)}`
+            : `${p.deltaYi >= 0 ? '' : '-'}${formatAmountYi(Math.abs(p.deltaYi))}`
         return `<div class="chart-tip">
           <div class="chart-tip__title">${p.time}</div>
-          ${tipRow(COLOR_TODAY, `今日两市成交：${p.todayYi == null ? '—' : formatAmountYi(p.todayYi, 2)}`)}
-          ${tipRow(COLOR_PREV, `前一日两市成交：${p.prevYi == null ? '—' : formatAmountYi(p.prevYi, 2)}`)}
+          ${tipRow(COLOR_TODAY, `今日两市成交：${p.todayYi == null ? '—' : formatAmountYi(p.todayYi)}`)}
+          ${tipRow(COLOR_PREV, `前一日两市成交：${p.prevYi == null ? '—' : formatAmountYi(p.prevYi)}`)}
           ${tipRow(deltaColor, `较前一日增减：${deltaText}`)}
         </div>`
       },
@@ -237,7 +237,7 @@ const chartOption = computed(() => {
         <div class="summary">
           <div class="summary-card">
             <div class="summary-label">两市成交额</div>
-            <div class="summary-value">{{ formatAmountYi(data.latestTodayYi, 2) }}</div>
+            <div class="summary-value">{{ formatAmountYi(data.latestTodayYi) }}</div>
             <div
               class="summary-sub"
               :class="(data.deltaVsPrevSameTimeYi ?? 0) >= 0 ? 'up' : 'down'"
@@ -246,13 +246,13 @@ const chartOption = computed(() => {
               {{
                 data.deltaVsPrevSameTimeYi == null
                   ? '—'
-                  : `${data.deltaVsPrevSameTimeYi >= 0 ? '放量' : '缩量'} ${formatAmountYi(Math.abs(data.deltaVsPrevSameTimeYi), 2)}`
+                  : `${data.deltaVsPrevSameTimeYi >= 0 ? '放量' : '缩量'} ${formatAmountYi(Math.abs(data.deltaVsPrevSameTimeYi))}`
               }}
             </div>
           </div>
           <div class="summary-card">
             <div class="summary-label">前一日全日成交</div>
-            <div class="summary-value prev">{{ formatAmountYi(data.prevFullYi, 2) }}</div>
+            <div class="summary-value prev">{{ formatAmountYi(data.prevFullYi) }}</div>
             <div class="summary-sub muted">对比日 {{ formatDisplayDate(data.prevDate) }}</div>
           </div>
         </div>

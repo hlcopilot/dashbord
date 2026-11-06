@@ -50,3 +50,27 @@ export interface IntradayTurnoverResult {
   /** 较前一日同时刻增减 */
   deltaVsPrevSameTimeYi: number | null
 }
+
+/** 两融余额日频 */
+export interface MarginDaily {
+  date: string
+  /** 融资融券余额，亿元 */
+  marginYi: number
+  /** 融资余额，亿元 */
+  financingYi: number
+  /** 融券余额，亿元 */
+  securitiesYi: number
+  /** 上证指数收盘价 */
+  sseClose: number | null
+}
+
+export interface MarginSeriesResult {
+  series: MarginDaily[]
+  asOf: string
+  latestMarginYi: number
+  latestSseClose: number | null
+  /** 较前一日增减（亿元） */
+  deltaYi: number | null
+  /** 近 3 年百分位 */
+  percentile3y: number
+}

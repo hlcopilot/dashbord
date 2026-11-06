@@ -33,6 +33,17 @@ export default defineConfig({
           Referer: 'https://finance.sina.com.cn',
         },
       },
+      // 东方财富数据中心（两融等）——必须写在 /api/eastmoney 之前，避免前缀误匹配
+      '/api/emdc': {
+        target: 'https://datacenter-web.eastmoney.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/emdc/, ''),
+        headers: {
+          Referer: 'https://data.eastmoney.com/rzrq/',
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+      },
       // 东方财富分时（近约 5 个交易日）
       '/api/eastmoney': {
         target: 'https://push2his.eastmoney.com',

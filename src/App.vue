@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import MarginBalanceCard from '@/components/MarginBalanceCard.vue'
 import TurnoverPercentileCard from '@/components/TurnoverPercentileCard.vue'
 </script>
 
@@ -14,6 +15,7 @@ import TurnoverPercentileCard from '@/components/TurnoverPercentileCard.vue'
 
     <main class="page-main">
       <TurnoverPercentileCard />
+      <MarginBalanceCard />
     </main>
   </div>
 </template>
@@ -56,7 +58,9 @@ import TurnoverPercentileCard from '@/components/TurnoverPercentileCard.vue'
 
 .page-main {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
 }
 
 @media (max-width: 640px) {

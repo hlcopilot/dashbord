@@ -17,7 +17,7 @@ import { ArrowDown, ArrowUp, RefreshRight } from '@element-plus/icons-vue'
 import { fetchHsTurnoverSeries, sliceByRange } from '@/api/market'
 import type { DailyTurnover, RangeKey, TurnoverSeriesResult } from '@/types/market'
 import { formatDisplayDate } from '@/utils/date'
-import { formatAmountYi } from '@/utils/format'
+import { formatAmountYi, formatNumber } from '@/utils/format'
 import IntradayTurnoverDialog from '@/components/IntradayTurnoverDialog.vue'
 
 use([
@@ -167,16 +167,16 @@ function buildTooltipHtml(dataIndex: number): string {
   const deltaText =
     delta == null
       ? '—'
-      : `${delta >= 0 ? '' : '-'}${formatAmountYi(Math.abs(delta), 2)}`
+      : `${delta >= 0 ? '' : '-'}${formatAmountYi(Math.abs(delta))}`
 
   const rows = [
     tooltipRow(
       COLOR_TODAY,
-      `${point.provisional ? '今日两市成交(盘中)' : '今日两市成交'}：${formatAmountYi(point.amountYi, 2)}`,
+      `${point.provisional ? '今日两市成交(盘中)' : '今日两市成交'}：${formatAmountYi(point.amountYi)}`,
     ),
     tooltipRow(
       COLOR_PREV,
-      `前一日两市成交：${prev ? formatAmountYi(prev.amountYi, 2) : '—'}`,
+      `前一日两市成交：${prev ? formatAmountYi(prev.amountYi) : '—'}`,
     ),
     tooltipRow(deltaColor, `较前一日增减：${deltaText}`),
   ]
@@ -254,7 +254,7 @@ const chartOption = computed(() => {
         fontSize: 11,
         fontWeight: 600,
         formatter: () =>
-          `${formatAmountYi(stats.max.amountYi, 2)}\n${formatDisplayDate(stats.max.date)}`,
+          `${formatAmountYi(stats.max.amountYi)}\n${formatDisplayDate(stats.max.date)}`,
       },
     })
     if (stats.minIdx !== stats.maxIdx) {
@@ -270,7 +270,7 @@ const chartOption = computed(() => {
           fontSize: 11,
           fontWeight: 600,
           formatter: () =>
-            `${formatAmountYi(stats.min.amountYi, 2)}\n${formatDisplayDate(stats.min.date)}`,
+            `${formatAmountYi(stats.min.amountYi)}\n${formatDisplayDate(stats.min.date)}`,
         },
       })
     }
@@ -455,7 +455,7 @@ const chartOption = computed(() => {
                   position: 'insideEndTop',
                   color: COLOR_AVG,
                   fontSize: 11,
-                  formatter: () => `均 ${formatAmountYi(avgValue, 2)}`,
+                  formatter: () => `均 ${formatAmountYi(avgValue)}`,
                 },
                 lineStyle: {
                   color: COLOR_AVG,
@@ -548,13 +548,13 @@ onBeforeUnmount(() => {
         <div class="summary-item">
           <div class="label">成交额</div>
           <div class="value orange">
-            {{ Math.round(result.latestAmountYi) }}<span class="unit">亿元</span>
+            {{ formatAmountYi(result.latestAmountYi) }}
           </div>
         </div>
         <div class="divider" />
         <div class="summary-item">
           <div class="label">近3年百分位</div>
-          <div class="value blue">{{ result.percentile3y.toFixed(1) }}%</div>
+          <div class="value blue">{{ formatNumber(result.percentile3y) }}%</div>
         </div>
       </div>
 
@@ -631,7 +631,7 @@ onBeforeUnmount(() => {
 .turnover-card {
   --el-card-border-color: transparent;
   --el-card-padding: 20px 22px 16px;
-  width: min(720px, 100%);
+  width: min(860px, 100%);
   border-radius: 16px;
   box-shadow: 0 8px 28px rgba(31, 35, 41, 0.06);
 }
