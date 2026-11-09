@@ -2,7 +2,19 @@
  * Cloudflare Worker：承接 /api/*
  * - 行情代理（搜狐 / 东财 / 新浪）
  * - 分时归档（KV，对应本地 data/intraday）
+ * - ETF 申赎净流入（上交所份额 + 东财日 K）
  */
+
+import {
+  DEFAULT_ETF_CODE,
+  DEFAULT_ETF_NAME,
+  DEFAULT_ETF_SECID,
+  ETF_KLINE_FULL_LIMIT,
+  buildEtfFlowSeries,
+  normalizeCache,
+  parseEmKlines,
+  parseSseShareWan,
+} from '../../etf-flow-core'
 
 export interface Env {
   /** 可选：未绑定时代理仍可用，仅归档读写不可用 */
@@ -173,6 +185,87 @@ async function handleIntradayArchive(request: Request, env: Env): Promise<Respon
   return json({ message: 'method not allowed' }, 405)
 }
 
+function etfCacheKey(code: string) {
+  return `etfcache:${code}`
+}
+
+async function handleEtfFlow(request: Request, env: Env): Promise<Response> {
+  if (request.method !== 'GET') return json({ message: 'method not allowed' }, 405)
+
+  const url = new URL(request.url)
+  const code = url.searchParams.get('code') || DEFAULT_ETF_CODE
+  const backfillLimit = Number(url.searchParams.get('backfill') || '40')
+  const kv = env.INTRADAY_KV
+
+  try {
+    const result = await buildEtfFlowSeries(
+      { code, name: DEFAULT_ETF_NAME, secid: DEFAULT_ETF_SECID },
+      {
+        concurrency: 8,
+        backfillLimit: Number.isFinite(backfillLimit) ? backfillLimit : 40,
+        retryRecent: 8,
+        async fetchKlines(secid, limit) {
+          const dest =
+            `https://push2his.eastmoney.com/api/qt/stock/kline/get` +
+            `?secid=${secid}&fields1=f1,f2,f3,f4,f5,f6` +
+            `&fields2=f51,f52,f53,f54,f55,f56,f57` +
+            `&klt=101&fqt=1&beg=0&end=20500101&lmt=${limit || ETF_KLINE_FULL_LIMIT}`
+          const r = await fetch(dest, {
+            headers: { Referer: 'https://quote.eastmoney.com/', 'User-Agent': UA },
+          })
+          if (!r.ok) throw new Error(`ETF 日线请求失败: ${r.status}`)
+          return parseEmKlines((await r.json()) as { data?: { klines?: string[] } })
+        },
+        async fetchShareWan(etfCode, date) {
+          const qs = new URLSearchParams({
+            isPagination: 'true',
+            'pageHelp.pageSize': '10000',
+            'pageHelp.pageNo': '1',
+            'pageHelp.beginPage': '1',
+            'pageHelp.cacheSize': '1',
+            'pageHelp.endPage': '1',
+            sqlId: 'COMMON_SSE_ZQPZ_ETFZL_XXPL_ETFGM_SEARCH_L',
+            STAT_DATE: date,
+          })
+          const r = await fetch(`https://query.sse.com.cn/commonQuery.do?${qs}`, {
+            headers: { Referer: 'https://www.sse.com.cn/', 'User-Agent': UA },
+          })
+          if (!r.ok) return null
+          return parseSseShareWan(
+            (await r.json()) as { result?: Array<Record<string, string>> },
+            etfCode,
+          )
+        },
+        async loadCache(etfCode) {
+          if (!kv) return normalizeCache(null)
+          const raw = await kv.get(etfCacheKey(etfCode))
+          if (!raw) return normalizeCache(null)
+          try {
+            return normalizeCache(JSON.parse(raw))
+          } catch {
+            return normalizeCache(null)
+          }
+        },
+        async saveCache(etfCode, cache) {
+          if (!kv) return
+          await kv.put(
+            etfCacheKey(etfCode),
+            JSON.stringify({
+              updatedAt: cache.updatedAt || new Date().toISOString(),
+              code: etfCode,
+              closes: cache.closes,
+              shares: cache.shares,
+            }),
+          )
+        },
+      },
+    )
+    return json(result)
+  } catch (e) {
+    return json({ message: e instanceof Error ? e.message : String(e) }, 502)
+  }
+}
+
 async function handleApi(request: Request, env: Env): Promise<Response> {
   const pathname = new URL(request.url).pathname
 
@@ -182,6 +275,10 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
 
   if (pathname.startsWith('/api/local/intraday')) {
     return handleIntradayArchive(request, env)
+  }
+
+  if (pathname === '/api/etf/flow') {
+    return handleEtfFlow(request, env)
   }
 
   const rule = PROXY_RULES.find((r) => pathname === r.prefix || pathname.startsWith(`${r.prefix}/`))

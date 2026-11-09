@@ -74,3 +74,27 @@ export interface MarginSeriesResult {
   /** 近 3 年百分位 */
   percentile3y: number
 }
+
+/** 单只 ETF 日净流入（申赎代理） */
+export interface EtfFlowDaily {
+  date: string
+  close: number
+  /** 总份额（万份） */
+  shareWan: number
+  /** 净流入（亿元）；序列首日可能为 null */
+  netInflowYi: number | null
+}
+
+export interface EtfFlowSeriesResult {
+  code: string
+  name: string
+  asOf: string
+  latestNetInflowYi: number | null
+  latestShareWan: number | null
+  series: EtfFlowDaily[]
+  pendingDates: string[]
+  missingShareCount?: number
+  fetchedShareCount?: number
+  cacheHitShareCount?: number
+  note: string
+}

@@ -12,7 +12,8 @@
     "deploy:cf": "npm run deploy:pages && npm run deploy:worker",
     "cf:worker:dev": "wrangler dev --config worker/wrangler.toml",
     "cf:kv:create": "wrangler kv namespace create INTRADAY_KV --config worker/wrangler.toml && wrangler kv namespace create INTRADAY_KV --preview --config worker/wrangler.toml",
-    "cf:kv:seed": "node scripts/seed-intraday-kv.mjs"
+    "cf:kv:seed": "node scripts/seed-intraday-kv.mjs",
+    "etf:seed": "node scripts/seed-etf-share.mjs"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",

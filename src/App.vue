@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import EtfNetFlowCard from '@/components/EtfNetFlowCard.vue'
 import MarginBalanceCard from '@/components/MarginBalanceCard.vue'
 import TurnoverPercentileCard from '@/components/TurnoverPercentileCard.vue'
 </script>
@@ -16,6 +17,7 @@ import TurnoverPercentileCard from '@/components/TurnoverPercentileCard.vue'
     <main class="page-main">
       <TurnoverPercentileCard />
       <MarginBalanceCard />
+      <EtfNetFlowCard />
     </main>
   </div>
 </template>

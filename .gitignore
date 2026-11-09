@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# ETF 份额本地缓存（可再生成）
+data/etf-share/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
