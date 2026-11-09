@@ -481,6 +481,7 @@ onMounted(() => {
         </button>
         <p v-show="guideOpen" class="guide-body">
           「两融余额」为沪深市场融资余额与融券余额之和，衡量杠杆资金存量。余额抬升通常对应风险偏好升温；与上证指数对照，可观察杠杆资金与大盘节奏是否同步。百分位反映当前余额在近 3 年中的相对位置，需结合估值与政策综合判断。
+          <span class="guide-emphasis">两融余额回落到1.5~2万亿很可能是熊市底部。</span>
         </p>
       </div>
     </template>
@@ -676,6 +677,11 @@ onMounted(() => {
   color: #6b7280;
   font-size: 13px;
   line-height: 1.7;
+}
+
+.guide-emphasis {
+  font-weight: 700;
+  color: #dc2626;
 }
 
 :deep(.el-segmented) {

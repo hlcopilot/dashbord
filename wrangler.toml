@@ -2,6 +2,6 @@
 # API 走独立 Worker，见 worker/wrangler.toml
 # 文档：DEPLOY-CLOUDFLARE.md
 
-name = "stock"
+name = "stock-loonghe"
 compatibility_date = "2025-11-01"
 pages_build_output_dir = "dist"

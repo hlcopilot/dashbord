@@ -15,7 +15,7 @@ preview_id = "2413ca5ebc324f0481e119d466f348cd"
 
 # 同域挂到 Pages 主机名（部署 Worker 后二选一）：
 # A) Dashboard → Workers → stock-api → Triggers → Add route
-#    Route: stock.pages.dev/api/*
+#    Route: stock-loonghe.pages.dev/api/*
 #    Zone: 若用 *.pages.dev，需用 Workers Routes 绑定自定义域，或用下面 routes（自有 Zone）
 # B) 自定义域名 Zone 内写：
 # [[routes]]

@@ -601,6 +601,7 @@ onBeforeUnmount(() => {
         </button>
         <p v-show="guideOpen" class="guide-body">
           「成交额百分位」衡量当前两市成交额在近 3 年历史中的相对位置。百分位越低，说明资金活跃度越偏冷；越高则交投越热。该指标需结合估值、政策与情绪综合判断，不宜单独作为买卖依据。右键交易日可查看当日分钟级两市成交额分时。
+          <span class="guide-emphasis">日成交额不到万亿很可能是熊市底部。</span>
         </p>
       </div>
     </template>
@@ -798,6 +799,11 @@ onBeforeUnmount(() => {
   color: #6b7280;
   font-size: 13px;
   line-height: 1.7;
+}
+
+.guide-emphasis {
+  font-weight: 700;
+  color: #dc2626;
 }
 
 :deep(.el-segmented) {

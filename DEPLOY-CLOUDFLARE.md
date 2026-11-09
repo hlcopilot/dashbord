@@ -14,7 +14,7 @@
 
 ```
 手机/浏览器
-   │  https://stock.pages.dev/
+   │  https://stock-loonghe.pages.dev/
    │
    ├─ /*          ──►  Cloudflare Pages（dist 静态）
    │
@@ -49,7 +49,7 @@ id = "xxxxxxxx"
 preview_id = "yyyyyyyy"
 ```
 
-### 3. （可选）Dashboard 里预建 Pages 项目名 `stock`，与根目录 `wrangler.toml` 的 `name` 一致。
+### 3. （可选）Dashboard 里预建 Pages 项目名 `stock-loonghe`，与根目录 `wrangler.toml` 的 `name` 一致。
 
 ## 部署（两步）
 
@@ -92,7 +92,7 @@ VITE_API_BASE=https://stock-api.dragonhe7458.workers.dev
 npm run deploy:pages
 ```
 
-4. 手机打开 Pages 地址即可（例如 `https://stock-46j.pages.dev` 或部署日志里的预览链接）。  
+4. 手机打开 Pages 地址即可（例如 `https://stock-loonghe.pages.dev` 或部署日志里的预览链接）。  
    请求会发到 Worker；Worker 已开 CORS，写 KV 照常。
 
 验证 API：

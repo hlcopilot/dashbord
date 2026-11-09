@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
     "preview": "vite preview",
-    "deploy:pages": "npm run build && wrangler pages deploy dist --project-name=stock",
+    "deploy:pages": "npm run build && wrangler pages deploy dist --project-name=stock-loonghe",
     "deploy:worker": "wrangler deploy --config worker/wrangler.toml",
     "deploy:cf": "npm run deploy:pages && npm run deploy:worker",
     "cf:worker:dev": "wrangler dev --config worker/wrangler.toml",
