@@ -2,10 +2,13 @@
 
 目标：手机/任意浏览器打开线上地址，效果接近本机 `npm run dev`。
 
+数据缓存策略详见 **[docs/DATA-CACHE-STRATEGY.md](./docs/DATA-CACHE-STRATEGY.md)**。
+
 | 能力 | 本机 Vite | Cloudflare |
 | --- | --- | --- |
 | 静态页面 | Vite | **Pages**（`dist`） |
-| `/api/sohu` 等行情代理 | `vite.config.ts` proxy | **Worker** |
+| 成交额/两融/ETF 聚合 API | Vite 插件 + `data/series` 等 | **Worker** + **KV** |
+| `/api/sohu` 等原始代理 | `vite.config.ts` proxy | **Worker**（聚合内部仍会用） |
 | 分时积累 | 写 `data/intraday/*.json` | Worker → **KV** |
 
 前端仍请求相对路径 `/api/...`，**业务代码不用改**。同域靠「Pages 主机名 + Worker Route `/api/*`」拼起来。

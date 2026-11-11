@@ -3,9 +3,10 @@ import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vite'
 import { etfFlowPlugin } from './vite-plugin-etf-flow.ts'
 import { localArchivePlugin } from './vite-plugin-local-archive.ts'
+import { marketSeriesPlugin } from './vite-plugin-market-series.ts'
 
 export default defineConfig({
-  plugins: [vue(), localArchivePlugin(), etfFlowPlugin()],
+  plugins: [vue(), localArchivePlugin(), etfFlowPlugin(), marketSeriesPlugin()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

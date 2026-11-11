@@ -15,6 +15,14 @@ import {
   parseEmKlines,
   parseSseShareWan,
 } from '../../etf-flow-core'
+import {
+  buildMarginSeries,
+  normalizeMarginCache,
+} from '../../margin-series-core'
+import {
+  buildTurnoverSeries,
+  normalizeTurnoverCache,
+} from '../../turnover-series-core'
 
 export interface Env {
   /** 可选：未绑定时代理仍可用，仅归档读写不可用 */
@@ -266,6 +274,118 @@ async function handleEtfFlow(request: Request, env: Env): Promise<Response> {
   }
 }
 
+async function fetchSohuAmount(
+  code: 'zs_000001' | 'zs_399001',
+  start: string,
+  end: string,
+): Promise<Map<string, number>> {
+  const url =
+    `https://q.stock.sohu.com/hisHq?code=${code}&start=${start}&end=${end}&stat=1&order=A&period=d`
+  let lastError: unknown
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      const res = await fetch(url, {
+        headers: { Referer: 'https://q.stock.sohu.com/', 'User-Agent': UA },
+      })
+      if (!res.ok) throw new Error(`sohu ${code}: ${res.status}`)
+      const data = (await res.json()) as Array<{
+        status: number
+        hq?: Array<[string, string, string, string, string, string, string, string, string, string]>
+      }>
+      const item = data?.[0]
+      if (!item || item.status !== 0 || !item.hq?.length) throw new Error(`sohu ${code}: empty`)
+      const map = new Map<string, number>()
+      for (const row of item.hq) map.set(row[0], Number(row[8]) / 10000)
+      return map
+    } catch (e) {
+      lastError = e
+      await new Promise((r) => setTimeout(r, 400 * (attempt + 1)))
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error(String(lastError))
+}
+
+async function fetchSohuCloseMap(start: string, end: string): Promise<Map<string, number>> {
+  const url =
+    `https://q.stock.sohu.com/hisHq?code=zs_000001&start=${start}&end=${end}&stat=1&order=A&period=d`
+  const res = await fetch(url, {
+    headers: { Referer: 'https://q.stock.sohu.com/', 'User-Agent': UA },
+  })
+  if (!res.ok) throw new Error(`上证指数请求失败: ${res.status}`)
+  const data = (await res.json()) as Array<{
+    status: number
+    hq?: Array<[string, string, string, string, string, string, string, string, string, string]>
+  }>
+  const map = new Map<string, number>()
+  const item = data?.[0]
+  if (!item || item.status !== 0 || !item.hq?.length) return map
+  for (const row of item.hq) map.set(row[0], Number(row[2]))
+  return map
+}
+
+async function handleTurnoverSeries(env: Env): Promise<Response> {
+  const kv = env.INTRADAY_KV
+  const key = 'series:turnover'
+  try {
+    const result = await buildTurnoverSeries({
+      fetchIndexAmount: fetchSohuAmount,
+      async loadCache() {
+        if (!kv) return normalizeTurnoverCache(null)
+        const raw = await kv.get(key)
+        return normalizeTurnoverCache(raw ? JSON.parse(raw) : null)
+      },
+      async saveCache(cache) {
+        if (!kv) return
+        await kv.put(key, JSON.stringify(cache))
+      },
+    })
+    return json(result)
+  } catch (e) {
+    return json({ message: e instanceof Error ? e.message : String(e) }, 502)
+  }
+}
+
+async function handleMarginSeries(env: Env): Promise<Response> {
+  const kv = env.INTRADAY_KV
+  const key = 'series:margin'
+  try {
+    const result = await buildMarginSeries({
+      async fetchMarginPage(pageNumber, pageSize = 800) {
+        const url =
+          `https://datacenter-web.eastmoney.com/api/data/v1/get` +
+          `?reportName=RPTA_RZRQ_LSHJ` +
+          `&columns=DIM_DATE,RZRQYE,RZYE,RQYE` +
+          `&pageNumber=${pageNumber}&pageSize=${pageSize}` +
+          `&sortTypes=-1&sortColumns=DIM_DATE&source=WEB&client=WEB`
+        const res = await fetch(url, {
+          headers: { Referer: 'https://data.eastmoney.com/rzrq/', 'User-Agent': UA },
+        })
+        if (!res.ok) throw new Error(`两融余额请求失败: ${res.status}`)
+        const body = (await res.json()) as {
+          result?: {
+            data?: Array<{ DIM_DATE: string; RZRQYE: number; RZYE: number; RQYE: number }>
+            pages?: number
+          }
+        }
+        return { rows: body.result?.data ?? [], pages: body.result?.pages ?? 1 }
+      },
+      fetchSseCloseMap: fetchSohuCloseMap,
+      async loadCache() {
+        if (!kv) return normalizeMarginCache(null)
+        const raw = await kv.get(key)
+        return normalizeMarginCache(raw ? JSON.parse(raw) : null)
+      },
+      async saveCache(cache) {
+        if (!kv) return
+        await kv.put(key, JSON.stringify(cache))
+      },
+    })
+    return json(result)
+  } catch (e) {
+    return json({ message: e instanceof Error ? e.message : String(e) }, 502)
+  }
+}
+
 async function handleApi(request: Request, env: Env): Promise<Response> {
   const pathname = new URL(request.url).pathname
 
@@ -279,6 +399,16 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
 
   if (pathname === '/api/etf/flow') {
     return handleEtfFlow(request, env)
+  }
+
+  if (pathname === '/api/turnover/series') {
+    if (request.method !== 'GET') return json({ message: 'method not allowed' }, 405)
+    return handleTurnoverSeries(env)
+  }
+
+  if (pathname === '/api/margin/series') {
+    if (request.method !== 'GET') return json({ message: 'method not allowed' }, 405)
+    return handleMarginSeries(env)
   }
 
   const rule = PROXY_RULES.find((r) => pathname === r.prefix || pathname.startsWith(`${r.prefix}/`))

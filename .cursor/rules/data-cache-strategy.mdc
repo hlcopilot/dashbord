@@ -1,0 +1,52 @@
+---
+description: dashbord 行情数据缓存优先与画图取数约束
+globs: "**/*"
+alwaysApply: true
+---
+
+# dashbord 数据策略（必须遵守）
+
+完整说明见 `docs/DATA-CACHE-STRATEGY.md`、部署见 `DEPLOY-CLOUDFLARE.md`。
+
+## 双环境（每次开发必须兼顾）
+
+本项目始终有两套运行场景，改 API / 缓存 / 代理时**两边一起改、一起可验证**：
+
+| 场景 | 入口 | 聚合 API / 缓存 |
+| --- | --- | --- |
+| **本地开发** | `npm run dev`（Vite） | Vite 插件中间件 + `data/**` |
+| **云端** | Pages 静态 + Worker | `worker/src` 同源路由 + KV |
+
+约束：
+
+1. 新增或修改 `/api/*` 聚合逻辑：同时落在 **Vite 插件** 与 **`worker/src/index.ts`**（或抽到双方共用的 `*-core.ts`）。
+2. 禁止只改本地中间件、上线 Worker 仍走旧逻辑（或反过来）。
+3. 前端用相对 `/api/...` + `apiUrl()` / `VITE_API_BASE`；本地空 base，生产可指 Worker。
+4. 涉及缓存键、seed、环境变量时，文档与 `DEPLOY-CLOUDFLARE.md` 一并更新；云端改动提醒 `deploy:pages` / `deploy:worker`。
+
+## 数据硬性约束
+
+1. **新增/改日频序列默认缓存优先**：本地 `data/` +（云端）Worker KV；禁止让前端每次打开页面直连上游拉全历史。
+2. **日常只增量**：搜狐用 `start/end` 窗口；东财分页倒序早停；ETF 份额只补缺日。不要恢复「每次从 2010/2015 拉到今天」的主路径。
+3. **画图取数**：卡片只消费聚合 API（`/api/turnover/series`、`/api/margin/series`、`/api/etf/flow`、`/api/local/intraday*`）；区间用前端 `slice*ByRange`，不要为缩放再打外部源。
+4. **分时与两融分开**：`data/intraday` 只服务成交额分时/盘中点；两融没有分时缓存。
+5. **改策略必改文档**：同步更新 `docs/DATA-CACHE-STRATEGY.md`；必要时补 seed 脚本与 Worker 路由。
+
+## 路径速查
+
+| 用途 | 本地 | KV / API |
+| --- | --- | --- |
+| 成交额 | `data/series/turnover.json` | `series:turnover` · `/api/turnover/series` |
+| 两融 | `data/series/margin.json` | `series:margin` · `/api/margin/series` |
+| ETF | `data/etf-share/{code}.json` | `etfcache:{code}` · `/api/etf/flow` |
+| 分时 | `data/intraday/*.json` | `day:YYYY-MM-DD` · `/api/local/intraday*` |
+
+## 反例
+
+```typescript
+// ❌ 卡片里每次全量 hisHq 20150101→today 再画图
+await fetch(apiUrl('/api/sohu/hisHq?code=zs_000001&start=20150101&end=...'))
+
+// ✅ 走聚合接口（内部缓存+增量）
+await fetch(apiUrl('/api/turnover/series'))
+```
