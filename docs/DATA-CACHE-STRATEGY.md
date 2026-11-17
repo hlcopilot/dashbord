@@ -7,9 +7,10 @@
 1. **双环境兼顾**：本地 `npm run dev`（Vite 插件 + `data/**`）与云端 Pages + Worker（KV）逻辑对齐；改 `/api/*` 必须两边一起改（优先抽 `*-core.ts` 共用）。
 2. **持久缓存优先**：历史序列落盘（本地 `data/`）或 Cloudflare KV；打开页面先读缓存再画图。
 3. **日常只打增量**：同一上游接口用日期窗口 / 倒序早停补齐缺日与近端修正，禁止每次全历史重拉。
-4. **冷启动可 seed**：首次或空缓存用 `npm run *:seed` 全量回填；页面请求也可渐进补齐，但不应阻塞成「每次全量」。
-5. **画图不直连上游**：Vue 卡片只请求本项目聚合 API（或本地归档），区间切换在前端 `slice*ByRange`，不重复打外部源。
-6. **分时与日线分开**：日频主图一套缓存；分钟分时另一套归档（东财近 5 日刷新 + 本地保留更早）。
+4. **收盘前门闩**（`market-session.ts`）：未到上海 15:00 不把「今天」写入日频收盘序列；ETF **份额**增量永不包含今天（T+1）。
+5. **冷启动可 seed**：首次或空缓存用 `npm run *:seed` 全量回填；页面请求也可渐进补齐，但不应阻塞成「每次全量」。
+6. **画图不直连上游**：Vue 卡片只请求本项目聚合 API（或本地归档），区间切换在前端 `slice*ByRange`，不重复打外部源。
+7. **分时与日线分开**：日频主图一套缓存；分钟分时另一套归档（东财近 5 日刷新 + 本地保留更早）。
 
 ## 模块对照
 
@@ -56,8 +57,9 @@
 ## 相关命令
 
 ```bash
-npm run series:seed   # 成交额 + 两融本地全量/补齐
-npm run etf:seed      # 单只 ETF 份额+收盘价全量/补齐
-npm run cf:kv:seed    # 分时 JSON 导入 KV（可选）
-npm run deploy:cf     # Pages + Worker
+npm run series:seed      # 成交额 + 两融本地全量/补齐
+npm run etf:seed         # 单只 ETF 份额+收盘价全量/补齐
+npm run cf:kv:seed       # 分时 JSON 导入 KV（可选）
+npm run cf:series:seed   # 成交额/两融/ETF 本地缓存导入 KV（云端必做：CF 出口常访问不上交所）
+npm run deploy:cf        # Pages + Worker
 ```

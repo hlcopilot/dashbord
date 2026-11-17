@@ -1,0 +1,55 @@
+/**
+ * 把本地 data/series + data/etf-share 导入 Worker 绑定的 INTRADAY_KV
+ * 用法：npm run cf:series:seed
+ *
+ * Cloudflare 出口访问上交所常失败，云端 ETF 图依赖这份 KV 缓存。
+ */
+import { spawn } from 'node:child_process'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { access } from 'node:fs/promises'
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+
+function wranglerPut(key, filePath) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(
+      'npx',
+      [
+        'wrangler',
+        'kv',
+        'key',
+        'put',
+        '--config',
+        'worker/wrangler.toml',
+        '--binding=INTRADAY_KV',
+        '--preview',
+        'false',
+        '--remote',
+        key,
+        `--path=${filePath}`,
+      ],
+      { cwd: root, stdio: 'inherit', shell: true },
+    )
+    child.on('exit', (code) => (code === 0 ? resolve() : reject(new Error(`wrangler exit ${code}`))))
+  })
+}
+
+const jobs = [
+  { key: 'series:turnover', file: path.join(root, 'data/series/turnover.json') },
+  { key: 'series:margin', file: path.join(root, 'data/series/margin.json') },
+  { key: 'etfcache:510300', file: path.join(root, 'data/etf-share/510300.json') },
+]
+
+for (const job of jobs) {
+  try {
+    await access(job.file)
+  } catch {
+    console.warn(`skip missing ${job.file}`)
+    continue
+  }
+  console.log(`put ${job.key} ← ${job.file}`)
+  await wranglerPut(job.key, job.file)
+}
+
+console.log('done')

@@ -1,6 +1,9 @@
 /**
  * 两融余额日频：缓存优先 + 东财倒序分页早停 + 搜狐上证增量
+ * 未收盘时不把「今天」写入日频缓存
  */
+
+import { dailySeriesEndCompact, isDailyCloseReady } from './market-session.ts'
 
 export type MarginCacheDay = {
   marginYi: number
@@ -88,7 +91,7 @@ export async function buildMarginSeries(deps: MarginSeriesDeps): Promise<MarginS
 
     for (const row of batch.rows) {
       const date = String(row.DIM_DATE).slice(0, 10)
-      if (!date) continue
+      if (!date || !isDailyCloseReady(date)) continue
 
       const next: MarginCacheDay = {
         marginYi: Math.round((Number(row.RZRQYE) / 1e8) * 100) / 100,
@@ -128,8 +131,7 @@ export async function buildMarginSeries(deps: MarginSeriesDeps): Promise<MarginS
 
   // 上证收盘增量
   const allDates = Object.keys(cache.days).sort()
-  const end = new Date()
-  const endCompact = `${end.getFullYear()}${String(end.getMonth() + 1).padStart(2, '0')}${String(end.getDate()).padStart(2, '0')}`
+  const endCompact = dailySeriesEndCompact()
   let sseStart = '20100101'
   if (allDates.length) {
     const withClose = allDates.filter((d) => cache.days[d]?.sseClose != null)

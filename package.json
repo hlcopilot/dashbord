@@ -13,6 +13,7 @@
     "cf:worker:dev": "wrangler dev --config worker/wrangler.toml",
     "cf:kv:create": "wrangler kv namespace create INTRADAY_KV --config worker/wrangler.toml && wrangler kv namespace create INTRADAY_KV --preview --config worker/wrangler.toml",
     "cf:kv:seed": "node scripts/seed-intraday-kv.mjs",
+    "cf:series:seed": "node scripts/seed-series-kv.mjs",
     "etf:seed": "node scripts/seed-etf-share.mjs",
     "series:seed": "node scripts/seed-market-series.mjs"
   },

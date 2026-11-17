@@ -23,14 +23,16 @@ alwaysApply: true
 2. 禁止只改本地中间件、上线 Worker 仍走旧逻辑（或反过来）。
 3. 前端用相对 `/api/...` + `apiUrl()` / `VITE_API_BASE`；本地空 base，生产可指 Worker。
 4. 涉及缓存键、seed、环境变量时，文档与 `DEPLOY-CLOUDFLARE.md` 一并更新；云端改动提醒 `deploy:pages` / `deploy:worker`。
+5. **云端 ETF 依赖 KV**：Cloudflare 出口常访问不上交所（`fetch failed`）。本地 `etf:seed` 后必须 `npm run cf:series:seed` 导入 KV；上游单日失败不得打崩整张卡。
 
 ## 数据硬性约束
 
 1. **新增/改日频序列默认缓存优先**：本地 `data/` +（云端）Worker KV；禁止让前端每次打开页面直连上游拉全历史。
 2. **日常只增量**：搜狐用 `start/end` 窗口；东财分页倒序早停；ETF 份额只补缺日。不要恢复「每次从 2010/2015 拉到今天」的主路径。
-3. **画图取数**：卡片只消费聚合 API（`/api/turnover/series`、`/api/margin/series`、`/api/etf/flow`、`/api/local/intraday*`）；区间用前端 `slice*ByRange`，不要为缩放再打外部源。
-4. **分时与两融分开**：`data/intraday` 只服务成交额分时/盘中点；两融没有分时缓存。
-5. **改策略必改文档**：同步更新 `docs/DATA-CACHE-STRATEGY.md`；必要时补 seed 脚本与 Worker 路由。
+3. **收盘前门闩**：未到上海 15:00，日频不写入/不增量「今天」；ETF 份额永不拉「今天」（T+1）。逻辑在 `market-session.ts`。
+4. **画图取数**：卡片只消费聚合 API（`/api/turnover/series`、`/api/margin/series`、`/api/etf/flow`、`/api/local/intraday*`）；区间用前端 `slice*ByRange`，不要为缩放再打外部源。
+5. **分时与两融分开**：`data/intraday` 只服务成交额分时/盘中点；两融没有分时缓存。
+6. **改策略必改文档**：同步更新 `docs/DATA-CACHE-STRATEGY.md`；必要时补 seed 脚本与 Worker 路由。
 
 ## 路径速查
 

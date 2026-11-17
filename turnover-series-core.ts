@@ -1,6 +1,9 @@
 /**
  * 沪深成交额日频：缓存优先 + 搜狐 hisHq 按日期窗口增量
+ * 未收盘时 end 用至上一自然日，避免把今日未完成日线写入缓存
  */
+
+import { dailySeriesEndCompact, isDailyCloseReady } from './market-session.ts'
 
 export type TurnoverCacheDay = {
   amountYi: number
@@ -74,8 +77,7 @@ export async function buildTurnoverSeries(
   cache.days = cache.days ?? {}
 
   const cachedDates = Object.keys(cache.days).sort()
-  const end = new Date()
-  const endCompact = `${end.getFullYear()}${String(end.getMonth() + 1).padStart(2, '0')}${String(end.getDate()).padStart(2, '0')}`
+  const endCompact = dailySeriesEndCompact()
 
   let startCompact = fullStart
   if (cachedDates.length) {
@@ -92,6 +94,7 @@ export async function buildTurnoverSeries(
   let fetchedDays = 0
   const dates = [...shMap.keys()].filter((d) => szMap.has(d)).sort()
   for (const date of dates) {
+    if (!isDailyCloseReady(date)) continue
     const amountYi = Math.round(((shMap.get(date) ?? 0) + (szMap.get(date) ?? 0)) * 10) / 10
     const prev = cache.days[date]?.amountYi
     if (prev !== amountYi) {

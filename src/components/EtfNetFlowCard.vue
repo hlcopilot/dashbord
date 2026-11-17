@@ -246,6 +246,16 @@ onMounted(() => {
     />
 
     <template v-if="result">
+      <el-alert
+        v-for="(w, i) in result.warnings ?? []"
+        :key="`warn-${i}`"
+        :title="w"
+        type="warning"
+        show-icon
+        :closable="false"
+        class="error-alert"
+      />
+
       <div class="summary">
         <div class="summary-item">
           <div class="label">最新日净流入</div>

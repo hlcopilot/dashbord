@@ -218,31 +218,39 @@ async function handleEtfFlow(request: Request, env: Env): Promise<Response> {
             `?secid=${secid}&fields1=f1,f2,f3,f4,f5,f6` +
             `&fields2=f51,f52,f53,f54,f55,f56,f57` +
             `&klt=101&fqt=1&beg=0&end=20500101&lmt=${limit || ETF_KLINE_FULL_LIMIT}`
-          const r = await fetch(dest, {
-            headers: { Referer: 'https://quote.eastmoney.com/', 'User-Agent': UA },
-          })
-          if (!r.ok) throw new Error(`ETF 日线请求失败: ${r.status}`)
-          return parseEmKlines((await r.json()) as { data?: { klines?: string[] } })
+          try {
+            const r = await fetch(dest, {
+              headers: { Referer: 'https://quote.eastmoney.com/', 'User-Agent': UA },
+            })
+            if (!r.ok) throw new Error(`ETF 日线请求失败: ${r.status}`)
+            return parseEmKlines((await r.json()) as { data?: { klines?: string[] } })
+          } catch (e) {
+            throw e instanceof Error ? e : new Error(String(e))
+          }
         },
         async fetchShareWan(etfCode, date) {
-          const qs = new URLSearchParams({
-            isPagination: 'true',
-            'pageHelp.pageSize': '10000',
-            'pageHelp.pageNo': '1',
-            'pageHelp.beginPage': '1',
-            'pageHelp.cacheSize': '1',
-            'pageHelp.endPage': '1',
-            sqlId: 'COMMON_SSE_ZQPZ_ETFZL_XXPL_ETFGM_SEARCH_L',
-            STAT_DATE: date,
-          })
-          const r = await fetch(`https://query.sse.com.cn/commonQuery.do?${qs}`, {
-            headers: { Referer: 'https://www.sse.com.cn/', 'User-Agent': UA },
-          })
-          if (!r.ok) return null
-          return parseSseShareWan(
-            (await r.json()) as { result?: Array<Record<string, string>> },
-            etfCode,
-          )
+          try {
+            const qs = new URLSearchParams({
+              isPagination: 'true',
+              'pageHelp.pageSize': '10000',
+              'pageHelp.pageNo': '1',
+              'pageHelp.beginPage': '1',
+              'pageHelp.cacheSize': '1',
+              'pageHelp.endPage': '1',
+              sqlId: 'COMMON_SSE_ZQPZ_ETFZL_XXPL_ETFGM_SEARCH_L',
+              STAT_DATE: date,
+            })
+            const r = await fetch(`https://query.sse.com.cn/commonQuery.do?${qs}`, {
+              headers: { Referer: 'https://www.sse.com.cn/', 'User-Agent': UA },
+            })
+            if (!r.ok) return null
+            return parseSseShareWan(
+              (await r.json()) as { result?: Array<Record<string, string>> },
+              etfCode,
+            )
+          } catch {
+            return null
+          }
         },
         async loadCache(etfCode) {
           if (!kv) return normalizeCache(null)

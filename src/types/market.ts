@@ -96,5 +96,7 @@ export interface EtfFlowSeriesResult {
   missingShareCount?: number
   fetchedShareCount?: number
   cacheHitShareCount?: number
+  klineSource?: 'remote' | 'cache'
+  warnings?: string[]
   note: string
 }

@@ -5,7 +5,14 @@
  * 缓存策略：
  * - 本地优先使用已缓存的份额 / 收盘价
  * - 历史一次回填后，日常只拉「缺日 + 近几日 pending 重试」
+ * - 未收盘不把「今天」当收盘价完整日；份额增量永不包含「今天」（T+1）
  */
+
+import {
+  filterDailyCloseReadyDates,
+  isEtfShareReady,
+  todayYmdShanghai,
+} from './market-session.ts'
 
 export const DEFAULT_ETF_CODE = '510300'
 export const DEFAULT_ETF_NAME = '沪深300ETF华泰柏瑞'
@@ -40,7 +47,7 @@ export type EtfFlowResult = {
   latestNetInflowYi: number | null
   latestShareWan: number | null
   series: EtfFlowDay[]
-  /** 份额尚未披露的交易日（常见为当日 T+1） */
+  /** 份额尚未披露 / 上游拉取失败的交易日（常见 T+1 或网络失败） */
   pendingDates: string[]
   /** 仍缺份额、尚未拉到的历史交易日数量 */
   missingShareCount: number
@@ -48,6 +55,10 @@ export type EtfFlowResult = {
   fetchedShareCount: number
   /** 命中本地份额缓存的天数 */
   cacheHitShareCount: number
+  /** 日 K：remote=东财；cache=上游失败后用本地 closes */
+  klineSource: 'remote' | 'cache'
+  /** 非致命告警（增量失败等），有 series 时仍应出图 */
+  warnings: string[]
   note: string
 }
 
@@ -110,14 +121,19 @@ export function selectShareFetchDates(
     .sort()
   const lastCached = cachedKeys.length ? cachedKeys[cachedKeys.length - 1] : null
 
-  const recentSet = new Set(klineDates.slice(-retryRecent))
+  // 份额 T+1：永不拉取「今天」
+  const shareMissing = missing.filter((d) => isEtfShareReady(d))
+
+  const recentSet = new Set(klineDates.filter((d) => isEtfShareReady(d)).slice(-retryRecent))
   const incremental = lastCached
-    ? missing.filter((d) => d > lastCached)
+    ? shareMissing.filter((d) => d > lastCached)
     : []
-  const recentRetry = missing.filter((d) => recentSet.has(d))
+  const recentRetry = shareMissing.filter((d) => recentSet.has(d))
 
   // 历史空洞：从最老缺日开始补一批（seed / 渐进回填）
-  const historical = missing.filter((d) => !recentSet.has(d) && !(lastCached && d > lastCached))
+  const historical = shareMissing.filter(
+    (d) => !recentSet.has(d) && !(lastCached && d > lastCached),
+  )
   const backfill = historical.slice(0, Math.max(0, backfillLimit))
 
   return [...new Set([...incremental, ...recentRetry, ...backfill])].sort()
@@ -141,24 +157,55 @@ export async function buildEtfFlowSeries(
   const cache = await deps.loadCache(code)
   cache.closes = cache.closes ?? {}
   cache.shares = cache.shares ?? {}
+  const warnings: string[] = []
 
-  // 日 K 一次拉全量，写入 closes 缓存
-  const klines = await deps.fetchKlines(secid, ETF_KLINE_FULL_LIMIT)
-  if (klines.length < 2) {
-    throw new Error('ETF 日线不足，无法计算净流入')
-  }
-
+  // 日 K：上游失败则回退本地 closes，不阻断出图
+  let klines: Array<{ date: string; close: number }> = []
+  let klineSource: 'remote' | 'cache' = 'remote'
   let closesDirty = false
-  for (const row of klines) {
-    if (cache.closes[row.date] !== row.close) {
-      cache.closes[row.date] = row.close
-      closesDirty = true
+  try {
+    klines = await deps.fetchKlines(secid, ETF_KLINE_FULL_LIMIT)
+    if (klines.length >= 2) {
+      for (const row of klines) {
+        if (cache.closes[row.date] !== row.close) {
+          cache.closes[row.date] = row.close
+          closesDirty = true
+        }
+      }
+    } else {
+      throw new Error('ETF 日线不足')
+    }
+  } catch (e) {
+    klineSource = 'cache'
+    const msg = e instanceof Error ? e.message : String(e)
+    warnings.push(
+      `东财日 K 接口网络失败（非 T+1 缺日），已用本地收盘价缓存出图。原因：${msg}`,
+    )
+    klines = Object.entries(cache.closes)
+      .map(([date, close]) => ({ date, close }))
+      .filter((r) => Number.isFinite(r.close))
+      .sort((a, b) => a.date.localeCompare(b.date))
+    if (klines.length < 2) {
+      throw new Error(
+        `ETF 日 K 上游失败且本地 closes 不足。请网络恢复后重试，或先 npm run etf:seed。原因：${msg}`,
+      )
     }
   }
 
+  // 未收盘：去掉「今天」不完整日 K，避免当成完整交易日写入/增量
+  const readyDates = new Set(filterDailyCloseReadyDates(klines.map((k) => k.date)))
+  const droppedToday = klines.some((k) => k.date === todayYmdShanghai() && !readyDates.has(k.date))
+  klines = klines.filter((k) => readyDates.has(k.date))
+  if (droppedToday) {
+    warnings.push(
+      `当前未到 A 股收盘（15:00），今日 ${todayYmdShanghai()} 不纳入日频增量；份额为 T+1，今日份额亦不拉取。`,
+    )
+  }
+
   const klineDates = klines.map((k) => k.date)
+  // 日 K 已走缓存时，仍尝试补近端份额；历史大回填留给 seed
   const toFetch = selectShareFetchDates(klineDates, cache.shares, {
-    backfillLimit,
+    backfillLimit: klineSource === 'cache' ? 0 : backfillLimit,
     retryRecent,
   })
 
@@ -167,21 +214,37 @@ export async function buildEtfFlowSeries(
 
   if (toFetch.length) {
     await mapPool(toFetch, concurrency, async (date) => {
-      const wan = await deps.fetchShareWan(code, date)
-      if (wan == null || !Number.isFinite(wan)) {
+      try {
+        const wan = await deps.fetchShareWan(code, date)
+        if (wan == null || !Number.isFinite(wan)) {
+          pendingDates.push(date)
+          return
+        }
+        cache.shares[date] = wan
+        fetchedShareCount += 1
+      } catch {
         pendingDates.push(date)
-        return
       }
-      cache.shares[date] = wan
-      fetchedShareCount += 1
     })
   }
 
-  // 全序列上仍缺份额的日期（含本次未排进拉取队列的历史空洞）
+  if (!Object.keys(cache.shares).length) {
+    throw new Error(
+      'ETF 份额缓存为空且上游拉取失败。请先 npm run etf:seed（云端再 npm run cf:series:seed）。',
+    )
+  }
+
   const stillMissing = klineDates.filter((d) => {
     const v = cache.shares[d]
     return !(typeof v === 'number' && Number.isFinite(v))
   })
+
+  if (pendingDates.length) {
+    const sample = [...new Set(pendingDates)].sort().slice(-5)
+    warnings.push(
+      `份额增量未齐（${pendingDates.length} 日），近端示例：${sample.join('、')}。图为已缓存区间，缺日不画断点。`,
+    )
+  }
 
   if (closesDirty || fetchedShareCount > 0) {
     cache.updatedAt = new Date().toISOString()
@@ -208,20 +271,26 @@ export async function buildEtfFlowSeries(
     series.push({ date, close, shareWan, netInflowYi })
   }
 
+  if (series.length < 2) {
+    throw new Error('ETF 缓存中可对齐的「份额+收盘价」不足两日，无法出图')
+  }
+
   const last = series[series.length - 1]
   return {
     code,
     name,
-    asOf: last?.date ?? klines[klines.length - 1].date,
-    latestNetInflowYi: last?.netInflowYi ?? null,
-    latestShareWan: last?.shareWan ?? null,
+    asOf: last.date,
+    latestNetInflowYi: last.netInflowYi ?? null,
+    latestShareWan: last.shareWan ?? null,
     series,
     pendingDates: [...new Set(pendingDates)].sort(),
     missingShareCount: stillMissing.length,
     fetchedShareCount,
     cacheHitShareCount,
+    klineSource,
+    warnings,
     note:
-      '净流入 ≈ 日份额变动 × 收盘价。份额/收盘价优先读本地缓存；日常只补缺日与近端 T+1 重试。单只 ETF 申赎净额为大资金代理指标，非官方「国家队」口径。',
+      '净流入 ≈ 日份额变动 × 收盘价。份额/收盘价优先读本地缓存；上游增量失败时仍用缓存出图，并在 warnings/pendingDates 标注缺日。',
   }
 }
 
