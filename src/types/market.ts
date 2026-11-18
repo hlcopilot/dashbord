@@ -88,6 +88,8 @@ export interface EtfFlowDaily {
 export interface EtfFlowSeriesResult {
   code: string
   name: string
+  indexName?: string
+  exchange?: 'SH' | 'SZ'
   asOf: string
   latestNetInflowYi: number | null
   latestShareWan: number | null

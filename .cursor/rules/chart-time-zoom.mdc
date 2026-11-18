@@ -1,0 +1,33 @@
+---
+description: 日频图时间轴缩放与底部工具条必须统一
+globs: "src/components/**/*.{vue,ts}"
+alwaysApply: false
+---
+
+# 图表时间轴缩放（必须统一）
+
+以成交额 / 两融图为体验基准。后续所有带交易日横轴的主图（含 ETF 及新增卡片）必须同一套缩放交互，禁止再写「瘦条、透明边、无圆柄」的独立 slider。
+
+## 硬性要求
+
+1. **复用** `src/utils/chartTimeZoom.ts`：
+   - `buildTimeAxisDataZoom({ start, end, accentColor?, left?, right? })`
+   - `buildTimeAxisToolbox({ accentColor? })`（需要框选时段时）
+   - grid 底部留白用 `CHART_TIME_ZOOM_GRID_BOTTOM`（72）
+2. **必须包含**：
+   - `inside`：滚轮缩放、拖移平移、`brushSelect`
+   - `slider`：height 36、圆柄 handle、浅底 + 蓝填充、`showDataShadow`
+3. **禁止**：height≤20 的细条、`borderColor: transparent` 且无 handle 样式、各卡复制粘贴另一套 dataZoom。
+4. 快捷区间（1m/3m/…）切换后须重置可视区到 0–100（可 `dispatchAction` 或换 chart key）。
+
+## 反例
+
+```ts
+// ❌
+dataZoom: [{ type: 'slider', height: 18, borderColor: 'transparent', handleSize: 16 }]
+
+// ✅
+import { buildTimeAxisDataZoom, CHART_TIME_ZOOM_GRID_BOTTOM } from '@/utils/chartTimeZoom'
+grid: { ..., bottom: CHART_TIME_ZOOM_GRID_BOTTOM }
+dataZoom: buildTimeAxisDataZoom({ start: zoomStart, end: zoomEnd })
+```

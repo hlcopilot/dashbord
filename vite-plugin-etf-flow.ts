@@ -2,16 +2,14 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import type { Connect, Plugin, PreviewServer, ViteDevServer } from 'vite'
 import {
-  DEFAULT_ETF_CODE,
-  DEFAULT_ETF_NAME,
-  DEFAULT_ETF_SECID,
   ETF_KLINE_FULL_LIMIT,
   buildEtfFlowSeries,
   normalizeCache,
   parseEmKlines,
-  parseSseShareWan,
   type EtfFlowCache,
 } from './etf-flow-core.ts'
+import { fetchEtfShareWan } from './etf-share-fetch.ts'
+import { DEFAULT_ETF_CODE, getEtfByCode } from './etf-universe.ts'
 
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
@@ -64,51 +62,24 @@ async function fetchKlines(secid: string, limit: number) {
   }
 }
 
-async function fetchShareWan(etfCode: string, date: string) {
-  try {
-    const qs = new URLSearchParams({
-      isPagination: 'true',
-      'pageHelp.pageSize': '10000',
-      'pageHelp.pageNo': '1',
-      'pageHelp.beginPage': '1',
-      'pageHelp.cacheSize': '1',
-      'pageHelp.endPage': '1',
-      sqlId: 'COMMON_SSE_ZQPZ_ETFZL_XXPL_ETFGM_SEARCH_L',
-      STAT_DATE: date,
-    })
-    const r = await fetch(`https://query.sse.com.cn/commonQuery.do?${qs}`, {
-      headers: { Referer: 'https://www.sse.com.cn/', 'User-Agent': UA },
-    })
-    if (!r.ok) return null
-    return parseSseShareWan(
-      (await r.json()) as { result?: Array<Record<string, string>> },
-      etfCode,
-    )
-  } catch {
-    return null
-  }
-}
-
 async function handleEtfFlow(req: Connect.IncomingMessage, res: import('node:http').ServerResponse) {
   const url = new URL(req.url ?? '/', 'http://localhost')
   if (req.method !== 'GET') return sendJson(res, 405, { message: 'method not allowed' })
 
   const code = url.searchParams.get('code') || DEFAULT_ETF_CODE
+  const meta = getEtfByCode(code)
   const backfillLimit = Number(url.searchParams.get('backfill') || '40')
 
   try {
-    const result = await buildEtfFlowSeries(
-      { code, name: DEFAULT_ETF_NAME, secid: DEFAULT_ETF_SECID },
-      {
-        concurrency: 8,
-        backfillLimit: Number.isFinite(backfillLimit) ? backfillLimit : 40,
-        retryRecent: 8,
-        fetchKlines,
-        fetchShareWan,
-        loadCache: readCache,
-        saveCache: writeCache,
-      },
-    )
+    const result = await buildEtfFlowSeries(meta, {
+      concurrency: 8,
+      backfillLimit: Number.isFinite(backfillLimit) ? backfillLimit : 40,
+      retryRecent: 8,
+      fetchKlines,
+      fetchShareWan: fetchEtfShareWan,
+      loadCache: readCache,
+      saveCache: writeCache,
+    })
     return sendJson(res, 200, result)
   } catch (e) {
     return sendJson(res, 502, {
@@ -142,4 +113,4 @@ export function etfFlowPlugin(): Plugin {
   }
 }
 
-export { ETF_KLINE_FULL_LIMIT, fetchKlines, fetchShareWan, readCache, writeCache }
+export { ETF_KLINE_FULL_LIMIT, fetchKlines, fetchEtfShareWan as fetchShareWan, readCache, writeCache }

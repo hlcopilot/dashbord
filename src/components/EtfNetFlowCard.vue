@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, useTemplateRef, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { BarChart, LineChart } from 'echarts/charts'
@@ -12,9 +12,16 @@ import {
   TooltipComponent,
 } from 'echarts/components'
 import VChart from 'vue-echarts'
-import { ArrowDown, ArrowUp, RefreshRight } from '@element-plus/icons-vue'
+import { ArrowDown, ArrowUp, Refresh, RefreshRight } from '@element-plus/icons-vue'
 import { fetchEtfFlowSeries, sliceEtfFlowByRange } from '@/api/etfFlow'
+import { withEtfFetchSlot } from '@/api/etfFlowGate'
+import { formatIndexWithPosition, getEtfByCode } from '@/etfUniverse'
 import type { EtfFlowSeriesResult, RangeKey } from '@/types/market'
+import {
+  buildTimeAxisDataZoom,
+  buildTimeAxisToolbox,
+  CHART_TIME_ZOOM_GRID_BOTTOM,
+} from '@/utils/chartTimeZoom'
 import { formatDisplayDate } from '@/utils/date'
 import { formatAmountYi, formatNumber } from '@/utils/format'
 
@@ -30,6 +37,14 @@ use([
   MarkLineComponent,
 ])
 
+const props = defineProps<{
+  code: string
+  /** 是否展示「如何解读」；分区里仅首卡展开说明即可 */
+  showGuide?: boolean
+}>()
+
+const meta = computed(() => getEtfByCode(props.code))
+
 const COLOR_UP = '#ef4444'
 const COLOR_DOWN = '#22c55e'
 const COLOR_SHARE = '#94a3b8'
@@ -44,28 +59,45 @@ const RANGE_OPTIONS: Array<{ label: string; value: RangeKey }> = [
   { label: '全部', value: 'all' },
 ]
 
-const loading = ref(true)
+const rootRef = useTemplateRef<HTMLElement>('rootRef')
+const loading = ref(false)
+const waitingView = ref(true)
 const error = ref('')
 const result = ref<EtfFlowSeriesResult | null>(null)
 const range = ref<RangeKey>('3m')
-const guideOpen = ref(true)
+const guideOpen = ref(false)
 const zoomStart = ref(0)
 const zoomEnd = ref(100)
-const chartRef = useTemplateRef<InstanceType<typeof VChart>>('chartRef')
+/** 区间切换时递增，给 v-chart 换 key，清掉 ECharts 内部缩放状态 */
+const chartEpoch = ref(0)
+let observer: IntersectionObserver | null = null
+let loadedOnce = false
 
 const rangedSeries = computed(() =>
   result.value ? sliceEtfFlowByRange(result.value.series, range.value) : [],
 )
+
+const chartInstanceKey = computed(
+  () => `${props.code}-${range.value}-${chartEpoch.value}`,
+)
+
+const indexLabel = computed(
+  () => result.value?.indexName || meta.value.indexName,
+)
+
+const indexLabelWithPos = computed(() => formatIndexWithPosition(indexLabel.value))
+
+const exchangeLabel = computed(() => {
+  const ex = result.value?.exchange || meta.value.exchange
+  return ex === 'SZ' ? '深交所披露' : '上交所披露'
+})
 
 const isZoomed = computed(() => zoomStart.value > 0.05 || zoomEnd.value < 99.95)
 
 function resetZoom() {
   zoomStart.value = 0
   zoomEnd.value = 100
-  const chart = chartRef.value as unknown as {
-    dispatchAction?: (payload: Record<string, unknown>) => void
-  } | null
-  chart?.dispatchAction?.({ type: 'dataZoom', start: 0, end: 100 })
+  chartEpoch.value += 1
 }
 
 function onDataZoom(params: {
@@ -79,7 +111,9 @@ function onDataZoom(params: {
 }
 
 watch(range, () => {
-  queueMicrotask(resetZoom)
+  zoomStart.value = 0
+  zoomEnd.value = 100
+  chartEpoch.value += 1
 })
 
 function tipRow(color: string, text: string) {
@@ -90,7 +124,7 @@ const chartOption = computed(() => {
   const list = rangedSeries.value
   const dates = list.map((d) => d.date)
   const flows = list.map((d) => d.netInflowYi)
-  const sharesYi = list.map((d) => Math.round((d.shareWan / 10000) * 100) / 100) // 亿份
+  const sharesYi = list.map((d) => Math.round((d.shareWan / 10000) * 100) / 100)
 
   const visibleFlows = flows.filter((v): v is number => v != null)
   const avg =
@@ -100,8 +134,9 @@ const chartOption = computed(() => {
 
   return {
     animation: false,
-    grid: { left: 52, right: 52, top: 28, bottom: 72 },
+    grid: { left: 52, right: 52, top: 36, bottom: CHART_TIME_ZOOM_GRID_BOTTOM },
     legend: { show: false },
+    toolbox: buildTimeAxisToolbox({ accentColor: '#3b82f6' }),
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
@@ -123,19 +158,13 @@ const chartOption = computed(() => {
         </div>`
       },
     },
-    dataZoom: [
-      { type: 'inside', start: zoomStart.value, end: zoomEnd.value },
-      {
-        type: 'slider',
-        height: 18,
-        bottom: 8,
-        start: zoomStart.value,
-        end: zoomEnd.value,
-        borderColor: 'transparent',
-        fillerColor: 'rgba(59,130,246,0.12)',
-        handleSize: 16,
-      },
-    ],
+    dataZoom: buildTimeAxisDataZoom({
+      start: zoomStart.value,
+      end: zoomEnd.value,
+      accentColor: '#3b82f6',
+      left: 52,
+      right: 52,
+    }),
     xAxis: {
       type: 'category',
       data: dates,
@@ -205,13 +234,14 @@ const chartOption = computed(() => {
   }
 })
 
-async function load() {
+async function load(force = false) {
+  if (!force && loadedOnce && result.value) return
   loading.value = true
+  waitingView.value = false
   error.value = ''
   try {
-    // 稍候于其他卡片；全量靠本地缓存，日常只打增量
-    await new Promise((r) => setTimeout(r, 1200))
-    result.value = await fetchEtfFlowSeries('510300')
+    result.value = await withEtfFetchSlot(() => fetchEtfFlowSeries(props.code))
+    loadedOnce = true
   } catch (e) {
     error.value = e instanceof Error ? e.message : '数据加载失败'
   } finally {
@@ -219,22 +249,64 @@ async function load() {
   }
 }
 
+/** 单卡重拉，避免整页刷新 */
+function reload() {
+  void load(true)
+}
+
 onMounted(() => {
-  void load()
+  if (props.showGuide) guideOpen.value = true
+  const el = rootRef.value
+  if (!el || typeof IntersectionObserver === 'undefined') {
+    void load()
+    return
+  }
+  observer = new IntersectionObserver(
+    (entries) => {
+      if (entries.some((e) => e.isIntersecting)) {
+        observer?.disconnect()
+        observer = null
+        void load()
+      }
+    },
+    { rootMargin: '120px 0px' },
+  )
+  observer.observe(el)
+})
+
+onBeforeUnmount(() => {
+  observer?.disconnect()
+  observer = null
 })
 </script>
 
 <template>
+  <div ref="rootRef" class="etf-card-root">
   <el-card class="etf-card" shadow="hover" v-loading="loading">
     <template #header>
       <div class="card-header">
-        <h2 class="title">ETF 净流入（大资金代理）</h2>
+        <div class="title-block">
+          <h2 class="title">{{ meta.name }}</h2>
+          <p class="index-tag">所属指数 · {{ indexLabelWithPos }}</p>
+        </div>
         <div class="meta">
-          <span class="badge">510300 · 份额 T+1</span>
+          <span class="badge">{{ code }} · {{ indexLabelWithPos }} · 份额 T+1</span>
           <span v-if="result" class="asof">截至 {{ formatDisplayDate(result.asOf) }}</span>
+          <el-button
+            size="small"
+            text
+            :icon="Refresh"
+            :loading="loading"
+            class="reload-btn"
+            @click="reload"
+          >
+            刷新
+          </el-button>
         </div>
       </div>
     </template>
+
+    <p v-if="waitingView && !result && !error" class="idle-hint">滚动至此处后加载…</p>
 
     <el-alert
       v-if="error"
@@ -243,7 +315,13 @@ onMounted(() => {
       show-icon
       :closable="false"
       class="error-alert"
-    />
+    >
+      <template #action>
+        <el-button size="small" type="primary" link :loading="loading" @click="reload">
+          重试
+        </el-button>
+      </template>
+    </el-alert>
 
     <template v-if="result">
       <el-alert
@@ -287,7 +365,7 @@ onMounted(() => {
                 : `${formatNumber(result.latestShareWan / 10000)} 亿份`
             }}
           </div>
-          <div class="delta muted">上交所披露</div>
+          <div class="delta muted">{{ exchangeLabel }}</div>
         </div>
       </div>
 
@@ -315,7 +393,7 @@ onMounted(() => {
       </div>
 
       <p class="zoom-hint">
-        红柱净申购、绿柱净赎回（亿元）；折线为总份额。优先读本地缓存，日常只补增量。
+        红柱净申购、绿柱净赎回（亿元）；折线为总份额。可滚轮/拖移缩放，底部滑条与右上角框选时段与成交额图一致。优先读本地缓存，日常只补增量。
         <template v-if="result.missingShareCount">
           历史份额仍缺 {{ result.missingShareCount }} 日，可运行
           <code>npm run etf:seed</code> 全量回填。
@@ -324,7 +402,7 @@ onMounted(() => {
 
       <div class="chart-wrap">
         <v-chart
-          ref="chartRef"
+          :key="chartInstanceKey"
           class="chart"
           :option="chartOption"
           autoresize
@@ -332,7 +410,7 @@ onMounted(() => {
         />
       </div>
 
-      <div class="guide">
+      <div v-if="showGuide" class="guide">
         <button class="guide-toggle" type="button" @click="guideOpen = !guideOpen">
           <span>如何解读</span>
           <el-icon>
@@ -341,21 +419,25 @@ onMounted(() => {
           </el-icon>
         </button>
         <p v-show="guideOpen" class="guide-body">
-          先选宽基 ETF（当前为华泰柏瑞沪深300
-          510300），按全天口径估算：净流入 ≈（当日总份额 − 前一日总份额）×
-          收盘价。民间常把宽基 ETF 异常大净申购当作「大资金／国家队」代理，但并非官方标签；也可能含套利、做市与普通机构。份额由上交所披露，通常
-          T+1，当日可能暂缺。
+          宽基 ETF 按全天口径估算：净流入 ≈（当日总份额 − 前一日总份额）×
+          收盘价。民间常把异常大净申购当作「大资金／国家队」代理，但并非官方标签；也可能含套利、做市与普通机构。沪市份额来自上交所、深市来自深交所，通常
+          T+1，当日可能暂缺。本页对齐 20 只热门宽基篮子，每张图标注所属指数。
         </p>
       </div>
     </template>
   </el-card>
+  </div>
 </template>
 
 <style scoped>
+.etf-card-root {
+  width: min(860px, 100%);
+}
+
 .etf-card {
   --el-card-border-color: transparent;
   --el-card-padding: 20px 22px 16px;
-  width: min(860px, 100%);
+  width: 100%;
   border-radius: 16px;
   box-shadow: 0 8px 28px rgba(31, 35, 41, 0.06);
 }
@@ -372,11 +454,21 @@ onMounted(() => {
   gap: 12px;
 }
 
+.title-block {
+  min-width: 0;
+}
+
 .title {
   margin: 0;
   font-size: 18px;
   font-weight: 650;
   color: var(--text-primary);
+}
+
+.index-tag {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 13px;
 }
 
 .meta {
@@ -398,6 +490,17 @@ onMounted(() => {
 .asof {
   color: #94a3b8;
   font-size: 12px;
+}
+
+.reload-btn {
+  margin-left: 2px;
+  color: #64748b;
+}
+
+.idle-hint {
+  margin: 0 0 8px;
+  color: #94a3b8;
+  font-size: 13px;
 }
 
 .error-alert {

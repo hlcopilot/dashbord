@@ -18,7 +18,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | 成交额主图 | `GET /api/turnover/series` | `data/series/turnover.json` | `series:turnover` | 搜狐 `hisHq` 上证+深成 | `start/end` 从近端重叠日起 | 前端读 API → 可选补今日虚线点 → `sliceByRange` |
 | 两融主图 | `GET /api/margin/series` | `data/series/margin.json` | `series:margin` | 东财 `RPTA_RZRQ_LSHJ` + 搜狐上证 | 倒序分页至缓存重叠早停；上证按日期窗口 | 前端读 API → `sliceMarginByRange` |
-| ETF 净流入 | `GET /api/etf/flow` | `data/etf-share/{code}.json` | `etfcache:{code}` | 上交所份额 + 东财日 K | 缺日份额 + 近端 T+1 重试；K 线一次对齐 closes | 前端读 API → `sliceEtfFlowByRange` |
+| ETF 净流入（20 只宽基） | `GET /api/etf/flow?code=` | `data/etf-share/{code}.json` | `etfcache:{code}` | 沪：上交所份额；深：深交所 `scsj_fund_jjgm`；东财日 K | 缺日份额 + 近端 T+1 重试；K 线对齐 closes | `EtfFlowSection` 按需请求 → `sliceEtfFlowByRange` |
 | 成交额分时 | `/api/local/intraday*` | `data/intraday/*.json` | `day:YYYY-MM-DD` | 东财 trends2 近约 5 日 | 远端近 5 日覆盖写回，更早保留本地 | `syncIntradayArchive` 合并后再画 |
 
 ## 成交额主图
@@ -37,10 +37,12 @@
 
 ## ETF 净流入
 
-- **缓存字段**：`shares`（万份）、`closes`（收盘价作净值近似）。
+- **篮子**：`etf-universe.ts` / `etf-universe.json` 固定 20 只（沪深300 / A500 / 1000 / 创业板 / 科创50 / 500 / 上证50 / 上证综指等），卡片标注 `indexName`。
+- **缓存字段**：`shares`（万份）、`closes`（收盘价作净值近似）；每只一只文件 / 一个 KV 键。
 - **公式**：`净流入 ≈ Δ份额(份) × 当日收盘价 / 1e8`（全日，非分时切片）。
-- **增量**：日 K 全量对齐 closes；份额只拉缺日 + 近端 pending 重试；历史空洞可用 `backfill` 或 `npm run etf:seed`。
-- **画图**：`fetchEtfFlowSeries` → `sliceEtfFlowByRange`。
+- **份额源**：沪市 `fetchSseShareWan`；深市 `fetchSzseShareWan`（`etf-share-fetch.ts`）。
+- **增量**：日 K 对齐 closes；份额只拉缺日 + 近端 pending 重试；历史空洞用 `npm run etf:seed`（无参=20 只，可传单 code）。
+- **画图**：`EtfFlowSection` 视口懒加载 + 并发门闩 → `fetchEtfFlowSeries(code)` → `sliceEtfFlowByRange`。
 
 ## 成交额分时（右键当日分时）
 
@@ -58,8 +60,9 @@
 
 ```bash
 npm run series:seed      # 成交额 + 两融本地全量/补齐
-npm run etf:seed         # 单只 ETF 份额+收盘价全量/补齐
+npm run etf:seed         # 20 只宽基份额+收盘价全量/补齐（可加 code 参数单只）
 npm run cf:kv:seed       # 分时 JSON 导入 KV（可选）
-npm run cf:series:seed   # 成交额/两融/ETF 本地缓存导入 KV（云端必做：CF 出口常访问不上交所）
+npm run cf:series:seed   # 成交额/两融/全部 etf-share/*.json 导入 KV（云端必做）
 npm run deploy:cf        # Pages + Worker
 ```
+

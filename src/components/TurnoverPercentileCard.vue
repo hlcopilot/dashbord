@@ -13,9 +13,14 @@ import {
 } from 'echarts/components'
 import type { CallbackDataParams } from 'echarts/types/dist/shared'
 import VChart from 'vue-echarts'
-import { ArrowDown, ArrowUp, RefreshRight } from '@element-plus/icons-vue'
+import { ArrowDown, ArrowUp, Refresh, RefreshRight } from '@element-plus/icons-vue'
 import { fetchHsTurnoverSeries, sliceByRange } from '@/api/market'
 import type { DailyTurnover, RangeKey, TurnoverSeriesResult } from '@/types/market'
+import {
+  buildTimeAxisDataZoom,
+  buildTimeAxisToolbox,
+  CHART_TIME_ZOOM_GRID_BOTTOM,
+} from '@/utils/chartTimeZoom'
 import { formatDisplayDate } from '@/utils/date'
 import { formatAmountYi, formatNumber } from '@/utils/format'
 import IntradayTurnoverDialog from '@/components/IntradayTurnoverDialog.vue'
@@ -280,27 +285,14 @@ const chartOption = computed(() => {
 
   return {
     animationDuration: 450,
-    grid: { left: 8, right: 16, top: 36, bottom: 72, containLabel: true },
-    toolbox: {
-      right: 4,
-      top: 0,
-      itemSize: 13,
-      iconStyle: { borderColor: '#6b7280' },
-      emphasis: { iconStyle: { borderColor: '#3b82f6' } },
-      feature: {
-        dataZoom: {
-          yAxisIndex: 'none',
-          brushStyle: {
-            color: 'rgba(59, 130, 246, 0.12)',
-            borderWidth: 0,
-          },
-          title: {
-            zoom: '框选时段',
-            back: '回退缩放',
-          },
-        },
-      },
+    grid: {
+      left: 8,
+      right: 16,
+      top: 36,
+      bottom: CHART_TIME_ZOOM_GRID_BOTTOM,
+      containLabel: true,
     },
+    toolbox: buildTimeAxisToolbox({ accentColor: '#3b82f6' }),
     tooltip: {
       trigger: 'axis',
       backgroundColor: 'rgba(245, 246, 248, 0.96)',
@@ -329,55 +321,13 @@ const chartOption = computed(() => {
         return typeof idx === 'number' ? buildTooltipHtml(idx) : ''
       },
     },
-    dataZoom: [
-      {
-        type: 'inside',
-        xAxisIndex: 0,
-        start: zoomStart.value,
-        end: zoomEnd.value,
-        zoomOnMouseWheel: true,
-        moveOnMouseMove: true,
-        moveOnMouseWheel: false,
-        preventDefaultMouseMove: true,
-        brushSelect: true,
-      },
-      {
-        type: 'slider',
-        xAxisIndex: 0,
-        start: zoomStart.value,
-        end: zoomEnd.value,
-        height: 36,
-        bottom: 8,
-        left: 48,
-        right: 24,
-        borderColor: '#e5e7eb',
-        backgroundColor: '#f8fafc',
-        fillerColor: 'rgba(59, 130, 246, 0.18)',
-        handleIcon:
-          'path://M6,0 A6,6 0 1,1 6,12 A6,6 0 1,1 6,0 Z',
-        handleSize: 12,
-        handleStyle: {
-          color: '#fff',
-          borderColor: '#3b82f6',
-          borderWidth: 1.5,
-          shadowBlur: 2,
-          shadowColor: 'rgba(59, 130, 246, 0.2)',
-        },
-        moveHandleSize: 0,
-        showDetail: false,
-        showDataShadow: true,
-        dataBackground: {
-          lineStyle: { color: COLOR_AMOUNT, width: 1, opacity: 0.55 },
-          areaStyle: { color: COLOR_AMOUNT, opacity: 0.12 },
-        },
-        selectedDataBackground: {
-          lineStyle: { color: COLOR_AMOUNT, width: 1.2 },
-          areaStyle: { color: COLOR_AMOUNT, opacity: 0.2 },
-        },
-        brushSelect: false,
-        filterMode: 'filter',
-      },
-    ],
+    dataZoom: buildTimeAxisDataZoom({
+      start: zoomStart.value,
+      end: zoomEnd.value,
+      accentColor: COLOR_AMOUNT,
+      left: 48,
+      right: 24,
+    }),
     xAxis: {
       type: 'category',
       data: dates,
@@ -506,6 +456,11 @@ async function load() {
   }
 }
 
+/** 单卡重拉，避免整页刷新 */
+function reload() {
+  void load()
+}
+
 onMounted(() => {
   void load()
   window.addEventListener('click', closeCtxMenu)
@@ -530,6 +485,16 @@ onBeforeUnmount(() => {
             class="badge badge-live"
           >盘中</span>
           <span v-if="result" class="asof">截至 {{ formatDisplayDate(result.asOf) }}</span>
+          <el-button
+            size="small"
+            text
+            :icon="Refresh"
+            :loading="loading"
+            class="reload-btn"
+            @click="reload"
+          >
+            刷新
+          </el-button>
         </div>
       </div>
     </template>
@@ -541,7 +506,13 @@ onBeforeUnmount(() => {
       show-icon
       :closable="false"
       class="error-alert"
-    />
+    >
+      <template #action>
+        <el-button size="small" type="primary" link :loading="loading" @click="reload">
+          重试
+        </el-button>
+      </template>
+    </el-alert>
 
     <template v-if="result">
       <div class="summary">
@@ -681,6 +652,11 @@ onBeforeUnmount(() => {
 .asof {
   color: var(--text-muted);
   white-space: nowrap;
+}
+
+.reload-btn {
+  margin-left: 2px;
+  color: #64748b;
 }
 
 .error-alert {

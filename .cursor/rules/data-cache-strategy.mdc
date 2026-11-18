@@ -23,7 +23,7 @@ alwaysApply: true
 2. 禁止只改本地中间件、上线 Worker 仍走旧逻辑（或反过来）。
 3. 前端用相对 `/api/...` + `apiUrl()` / `VITE_API_BASE`；本地空 base，生产可指 Worker。
 4. 涉及缓存键、seed、环境变量时，文档与 `DEPLOY-CLOUDFLARE.md` 一并更新；云端改动提醒 `deploy:pages` / `deploy:worker`。
-5. **云端 ETF 依赖 KV**：Cloudflare 出口常访问不上交所（`fetch failed`）。本地 `etf:seed` 后必须 `npm run cf:series:seed` 导入 KV；上游单日失败不得打崩整张卡。
+5. **云端 ETF 依赖 KV**：Cloudflare 出口常访问不上交所/深交所。本地 `etf:seed`（20 只篮子见 `etf-universe.ts`）后必须 `npm run cf:series:seed` 导入全部 `etfcache:{code}`；上游单日失败不得打崩整张卡。
 
 ## 数据硬性约束
 
@@ -40,7 +40,7 @@ alwaysApply: true
 | --- | --- | --- |
 | 成交额 | `data/series/turnover.json` | `series:turnover` · `/api/turnover/series` |
 | 两融 | `data/series/margin.json` | `series:margin` · `/api/margin/series` |
-| ETF | `data/etf-share/{code}.json` | `etfcache:{code}` · `/api/etf/flow` |
+| ETF（20 只宽基） | `data/etf-share/{code}.json` | `etfcache:{code}` · `/api/etf/flow?code=` |
 | 分时 | `data/intraday/*.json` | `day:YYYY-MM-DD` · `/api/local/intraday*` |
 
 ## 反例

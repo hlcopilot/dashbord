@@ -13,8 +13,9 @@ import {
   isEtfShareReady,
   todayYmdShanghai,
 } from './market-session.ts'
+import { DEFAULT_ETF_CODE, getEtfByCode } from './etf-universe.ts'
 
-export const DEFAULT_ETF_CODE = '510300'
+export { DEFAULT_ETF_CODE }
 export const DEFAULT_ETF_NAME = '沪深300ETF华泰柏瑞'
 export const DEFAULT_ETF_SECID = '1.510300'
 
@@ -25,7 +26,7 @@ export type EtfFlowDay = {
   date: string
   /** 收盘价（元），作净值近似 */
   close: number
-  /** 总份额（万份），上交所口径 */
+  /** 总份额（万份），交易所披露口径 */
   shareWan: number
   /** 当日净流入（亿元）；缺前值时为 null */
   netInflowYi: number | null
@@ -43,6 +44,10 @@ export type EtfFlowCache = {
 export type EtfFlowResult = {
   code: string
   name: string
+  /** 所属宽基指数 */
+  indexName: string
+  /** 份额披露交易所 */
+  exchange: 'SH' | 'SZ'
   asOf: string
   latestNetInflowYi: number | null
   latestShareWan: number | null
@@ -144,12 +149,17 @@ export async function buildEtfFlowSeries(
     code?: string
     name?: string
     secid?: string
+    indexName?: string
+    exchange?: 'SH' | 'SZ'
   },
   deps: EtfFlowDeps,
 ): Promise<EtfFlowResult> {
-  const code = opts.code || DEFAULT_ETF_CODE
-  const name = opts.name || DEFAULT_ETF_NAME
-  const secid = opts.secid || DEFAULT_ETF_SECID
+  const meta = getEtfByCode(opts.code || DEFAULT_ETF_CODE)
+  const code = opts.code || meta.code
+  const name = opts.name || meta.name
+  const secid = opts.secid || meta.secid
+  const indexName = opts.indexName || meta.indexName
+  const exchange = opts.exchange || meta.exchange
   const concurrency = deps.concurrency ?? 8
   const backfillLimit = deps.backfillLimit ?? 40
   const retryRecent = deps.retryRecent ?? 8
@@ -279,6 +289,8 @@ export async function buildEtfFlowSeries(
   return {
     code,
     name,
+    indexName,
+    exchange,
     asOf: last.date,
     latestNetInflowYi: last.netInflowYi ?? null,
     latestShareWan: last.shareWan ?? null,

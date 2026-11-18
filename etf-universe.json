@@ -1,0 +1,142 @@
+[
+  {
+    "code": "510300",
+    "name": "沪深300ETF华泰柏瑞",
+    "indexName": "沪深300",
+    "exchange": "SH",
+    "secid": "1.510300"
+  },
+  {
+    "code": "510310",
+    "name": "沪深300ETF易方达",
+    "indexName": "沪深300",
+    "exchange": "SH",
+    "secid": "1.510310"
+  },
+  {
+    "code": "159919",
+    "name": "沪深300ETF嘉实",
+    "indexName": "沪深300",
+    "exchange": "SZ",
+    "secid": "0.159919"
+  },
+  {
+    "code": "510210",
+    "name": "上证指数ETF富国",
+    "indexName": "上证综指",
+    "exchange": "SH",
+    "secid": "1.510210"
+  },
+  {
+    "code": "510050",
+    "name": "上证50ETF华夏",
+    "indexName": "上证50",
+    "exchange": "SH",
+    "secid": "1.510050"
+  },
+  {
+    "code": "510500",
+    "name": "中证500ETF南方",
+    "indexName": "中证500",
+    "exchange": "SH",
+    "secid": "1.510500"
+  },
+  {
+    "code": "512100",
+    "name": "中证1000ETF南方",
+    "indexName": "中证1000",
+    "exchange": "SH",
+    "secid": "1.512100"
+  },
+  {
+    "code": "560010",
+    "name": "中证1000ETF广发",
+    "indexName": "中证1000",
+    "exchange": "SH",
+    "secid": "1.560010"
+  },
+  {
+    "code": "159845",
+    "name": "中证1000ETF华夏",
+    "indexName": "中证1000",
+    "exchange": "SZ",
+    "secid": "0.159845"
+  },
+  {
+    "code": "159633",
+    "name": "中证1000ETF易方达",
+    "indexName": "中证1000",
+    "exchange": "SZ",
+    "secid": "0.159633"
+  },
+  {
+    "code": "588000",
+    "name": "科创50ETF华夏",
+    "indexName": "科创50",
+    "exchange": "SH",
+    "secid": "1.588000"
+  },
+  {
+    "code": "588080",
+    "name": "科创50ETF易方达",
+    "indexName": "科创50",
+    "exchange": "SH",
+    "secid": "1.588080"
+  },
+  {
+    "code": "159915",
+    "name": "创业板ETF易方达",
+    "indexName": "创业板指",
+    "exchange": "SZ",
+    "secid": "0.159915"
+  },
+  {
+    "code": "159952",
+    "name": "创业板ETF广发",
+    "indexName": "创业板指",
+    "exchange": "SZ",
+    "secid": "0.159952"
+  },
+  {
+    "code": "159949",
+    "name": "创业板50ETF华安",
+    "indexName": "创业板50",
+    "exchange": "SZ",
+    "secid": "0.159949"
+  },
+  {
+    "code": "563360",
+    "name": "A500ETF华泰柏瑞",
+    "indexName": "中证A500",
+    "exchange": "SH",
+    "secid": "1.563360"
+  },
+  {
+    "code": "159338",
+    "name": "中证A500ETF国泰",
+    "indexName": "中证A500",
+    "exchange": "SZ",
+    "secid": "0.159338"
+  },
+  {
+    "code": "159352",
+    "name": "A500ETF南方",
+    "indexName": "中证A500",
+    "exchange": "SZ",
+    "secid": "0.159352"
+  },
+  {
+    "code": "159361",
+    "name": "A500ETF易方达",
+    "indexName": "中证A500",
+    "exchange": "SZ",
+    "secid": "0.159361"
+  },
+  {
+    "code": "512050",
+    "name": "A500ETF华夏",
+    "indexName": "中证A500",
+    "exchange": "SH",
+    "secid": "1.512050"
+  }
+]

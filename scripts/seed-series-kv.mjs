@@ -2,12 +2,12 @@
  * 把本地 data/series + data/etf-share 导入 Worker 绑定的 INTRADAY_KV
  * 用法：npm run cf:series:seed
  *
- * Cloudflare 出口访问上交所常失败，云端 ETF 图依赖这份 KV 缓存。
+ * Cloudflare 出口访问交易所常失败，云端 ETF 图依赖这份 KV 缓存。
  */
 import { spawn } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { access } from 'node:fs/promises'
+import { access, readdir } from 'node:fs/promises'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -38,8 +38,18 @@ function wranglerPut(key, filePath) {
 const jobs = [
   { key: 'series:turnover', file: path.join(root, 'data/series/turnover.json') },
   { key: 'series:margin', file: path.join(root, 'data/series/margin.json') },
-  { key: 'etfcache:510300', file: path.join(root, 'data/etf-share/510300.json') },
 ]
+
+const etfDir = path.join(root, 'data/etf-share')
+try {
+  const files = (await readdir(etfDir)).filter((f) => /^\d{6}\.json$/.test(f))
+  for (const file of files) {
+    const code = file.replace(/\.json$/, '')
+    jobs.push({ key: `etfcache:${code}`, file: path.join(etfDir, file) })
+  }
+} catch {
+  console.warn('no data/etf-share directory')
+}
 
 for (const job of jobs) {
   try {
@@ -52,4 +62,4 @@ for (const job of jobs) {
   await wranglerPut(job.key, job.file)
 }
 
-console.log('done')
+console.log(`done (${jobs.length} job(s) attempted)`)
