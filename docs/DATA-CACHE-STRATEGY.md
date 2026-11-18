@@ -55,6 +55,7 @@
 - 本地：Vite 插件写 `data/series`、`data/etf-share`、`data/intraday`。
 - 云端：Worker 同源路径读 KV；无自定义域时前端 `VITE_API_BASE` 指向 Worker。
 - 改策略或新增序列后：更新本文 + 本仓库 `.cursor/rules/data-cache-strategy.mdc`，并评估是否需要 seed / 重新 deploy Worker。
+- 前端卡片改动需同时满足桌面 + H5（见 `docs/H5-MOBILE.md`）；云端 Pages 即手机常用入口。
 
 ## 相关命令
 

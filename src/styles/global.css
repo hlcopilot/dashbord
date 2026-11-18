@@ -35,11 +35,55 @@ body,
   min-height: 100%;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
+  overflow-x: hidden;
   background:
     radial-gradient(1200px 600px at 10% -10%, #e8eef8 0%, transparent 55%),
     radial-gradient(900px 500px at 100% 0%, #f7efe6 0%, transparent 50%),
     var(--page-bg);
+}
+
+/* 触控设备：减少点击延迟感，保留双击缩放由浏览器处理 */
+@media (hover: none) and (pointer: coarse) {
+  button,
+  .el-button {
+    touch-action: manipulation;
+  }
+}
+
+@media (max-width: 640px) {
+  .chart-tip__row {
+    white-space: normal;
+  }
+
+  .ctx-menu {
+    min-width: min(220px, calc(100vw - 24px));
+  }
+}
+
+/* 窄屏分时入口：底部操作条，拇指区可点 */
+.ctx-menu--sheet {
+  left: 50%;
+  right: auto;
+  top: auto;
+  bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  min-width: min(320px, calc(100vw - 24px));
+  transform: translateX(-50%);
+  padding: 6px;
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(31, 35, 41, 0.18);
+}
+
+.ctx-menu--sheet .ctx-menu__item {
+  min-height: 44px;
+  padding: 12px 14px;
+  font-size: 15px;
+  font-weight: 600;
 }
 
 button {
@@ -94,6 +138,7 @@ button {
   border-radius: 8px;
   background: transparent;
   color: #1f2329;
+  touch-action: manipulation;
   font-size: 13px;
   cursor: pointer;
 }

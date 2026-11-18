@@ -101,13 +101,30 @@ const etfs = computed(() => listEtfsByIndex(indexFilter.value))
 }
 
 @media (max-width: 640px) {
+  .etf-section {
+    gap: 12px;
+  }
+
   .section-header {
     flex-direction: column;
     align-items: stretch;
+    gap: 10px;
+  }
+
+  .section-title {
+    font-size: 18px;
+  }
+
+  .section-desc {
+    font-size: 12px;
   }
 
   .index-filter {
     width: 100%;
+  }
+
+  .etf-list {
+    gap: 14px;
   }
 }
 </style>

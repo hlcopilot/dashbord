@@ -19,6 +19,7 @@ alwaysApply: false
    - `slider`：height 36、圆柄 handle、浅底 + 蓝填充、`showDataShadow`
 3. **禁止**：height≤20 的细条、`borderColor: transparent` 且无 handle 样式、各卡复制粘贴另一套 dataZoom。
 4. 快捷区间（1m/3m/…）切换后须重置可视区到 0–100（可 `dispatchAction` 或换 chart key）。
+5. **H5**：传入 `narrow: true`（配合 `useNarrowScreen()`），并使用 `chartTimeZoomGridBottom(narrow)`；勿在窄屏强开图内拖移。完整 H5 约束见 `docs/H5-MOBILE.md` / `h5-mobile` 规则。
 
 ## 反例
 

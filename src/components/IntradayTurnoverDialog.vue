@@ -7,11 +7,16 @@ import { GridComponent, TooltipComponent } from 'echarts/components'
 import type { CallbackDataParams } from 'echarts/types/dist/shared'
 import VChart from 'vue-echarts'
 import { fetchIntradayTurnover } from '@/api/intraday'
+import { useNarrowScreen } from '@/composables/useNarrowScreen'
 import type { DailyTurnover, IntradayTurnoverResult } from '@/types/market'
 import { formatDisplayDate } from '@/utils/date'
 import { formatAmountYi } from '@/utils/format'
 
 use([CanvasRenderer, LineChart, BarChart, GridComponent, TooltipComponent])
+
+const narrow = useNarrowScreen(720)
+const dialogWidth = computed(() => (narrow.value ? 'calc(100vw - 16px)' : '860px'))
+const dialogTop = computed(() => (narrow.value ? '4vh' : '6vh'))
 
 const props = defineProps<{
   modelValue: boolean
@@ -108,8 +113,18 @@ const chartOption = computed(() => {
     },
     axisPointer: { link: [{ xAxisIndex: 'all' }] },
     grid: [
-      { left: 52, right: 20, top: 12, height: '56%' },
-      { left: 52, right: 20, top: '74%', height: '16%' },
+      {
+        left: narrow.value ? 40 : 52,
+        right: narrow.value ? 10 : 20,
+        top: 12,
+        height: narrow.value ? '52%' : '56%',
+      },
+      {
+        left: narrow.value ? 40 : 52,
+        right: narrow.value ? 10 : 20,
+        top: narrow.value ? '70%' : '74%',
+        height: narrow.value ? '18%' : '16%',
+      },
     ],
     xAxis: [
       {
@@ -131,7 +146,7 @@ const chartOption = computed(() => {
         axisTick: { show: false },
         axisLabel: {
           color: '#a8b0bd',
-          fontSize: 11,
+          fontSize: narrow.value ? 10 : 11,
           interval: (...args: [number, string]) => {
             const value = args[1]
             return value === '09:30' || value === '11:30' || value === '15:00'
@@ -144,11 +159,11 @@ const chartOption = computed(() => {
       {
         type: 'value',
         gridIndex: 0,
-        splitNumber: 4,
+        splitNumber: narrow.value ? 3 : 4,
         axisLabel: {
           color: '#a8b0bd',
-          fontSize: 11,
-          formatter: (v: number) => formatAmountYi(v, 2),
+          fontSize: narrow.value ? 10 : 11,
+          formatter: (v: number) => formatAmountYi(v, narrow.value ? 1 : 2),
         },
         splitLine: { lineStyle: { color: '#eef0f4' } },
         axisLine: { show: false },
@@ -160,7 +175,7 @@ const chartOption = computed(() => {
         splitNumber: 2,
         axisLabel: {
           color: '#a8b0bd',
-          fontSize: 11,
+          fontSize: narrow.value ? 10 : 11,
           formatter: (v: number) => formatAmountYi(v, 1),
         },
         splitLine: { lineStyle: { color: '#eef0f4' } },
@@ -206,7 +221,7 @@ const chartOption = computed(() => {
                 itemStyle: { color: v >= 0 ? COLOR_UP : COLOR_DOWN },
               },
         ),
-        barWidth: 2,
+        barWidth: narrow.value ? 1.5 : 2,
         xAxisIndex: 1,
         yAxisIndex: 1,
       },
@@ -219,8 +234,9 @@ const chartOption = computed(() => {
   <el-dialog
     v-model="visible"
     :title="`成交分析 · ${formatDisplayDate(date)} 分时`"
-    width="860px"
-    top="6vh"
+    :width="dialogWidth"
+    :top="dialogTop"
+    align-center
     destroy-on-close
     class="intraday-dialog"
   >
@@ -375,12 +391,55 @@ const chartOption = computed(() => {
 }
 
 @media (max-width: 720px) {
+  .intraday-body {
+    min-height: 300px;
+  }
+
   .summary {
     grid-template-columns: 1fr;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .summary-card {
+    padding: 10px 12px;
+  }
+
+  .summary-value {
+    font-size: 22px;
+  }
+
+  .chart-legend {
+    gap: 10px 14px;
+    justify-content: flex-start;
+    font-size: 11px;
   }
 
   .intraday-chart {
-    height: 320px;
+    height: min(320px, 52vh);
+  }
+}
+</style>
+
+<style>
+/* dialog 挂到 body，需非 scoped */
+@media (max-width: 720px) {
+  .intraday-dialog.el-dialog {
+    margin: 8px auto !important;
+    max-width: calc(100vw - 16px);
+  }
+
+  .intraday-dialog .el-dialog__header {
+    padding: 12px 14px 8px;
+  }
+
+  .intraday-dialog .el-dialog__body {
+    padding: 8px 12px 14px;
+  }
+
+  .intraday-dialog .el-dialog__title {
+    font-size: 15px;
+    line-height: 1.4;
   }
 }
 </style>

@@ -17,13 +17,16 @@ import { fetchEtfFlowSeries, sliceEtfFlowByRange } from '@/api/etfFlow'
 import { withEtfFetchSlot } from '@/api/etfFlowGate'
 import { formatIndexWithPosition, getEtfByCode } from '@/etfUniverse'
 import type { EtfFlowSeriesResult, RangeKey } from '@/types/market'
+import { useNarrowScreen } from '@/composables/useNarrowScreen'
 import {
   buildTimeAxisDataZoom,
   buildTimeAxisToolbox,
-  CHART_TIME_ZOOM_GRID_BOTTOM,
+  chartTimeZoomGridBottom,
 } from '@/utils/chartTimeZoom'
 import { formatDisplayDate } from '@/utils/date'
 import { formatAmountYi, formatNumber } from '@/utils/format'
+
+const narrow = useNarrowScreen()
 
 use([
   CanvasRenderer,
@@ -134,9 +137,14 @@ const chartOption = computed(() => {
 
   return {
     animation: false,
-    grid: { left: 52, right: 52, top: 36, bottom: CHART_TIME_ZOOM_GRID_BOTTOM },
+    grid: {
+      left: narrow.value ? 36 : 52,
+      right: narrow.value ? 36 : 52,
+      top: narrow.value ? 28 : 36,
+      bottom: chartTimeZoomGridBottom(narrow.value),
+    },
     legend: { show: false },
-    toolbox: buildTimeAxisToolbox({ accentColor: '#3b82f6' }),
+    toolbox: buildTimeAxisToolbox({ accentColor: '#3b82f6', narrow: narrow.value }),
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
@@ -162,8 +170,9 @@ const chartOption = computed(() => {
       start: zoomStart.value,
       end: zoomEnd.value,
       accentColor: '#3b82f6',
-      left: 52,
-      right: 52,
+      left: narrow.value ? 8 : 52,
+      right: narrow.value ? 8 : 52,
+      narrow: narrow.value,
     }),
     xAxis: {
       type: 'category',
@@ -388,7 +397,9 @@ onBeforeUnmount(() => {
           <el-button size="small" :disabled="!isZoomed" :icon="RefreshRight" @click="resetZoom">
             重置
           </el-button>
-          <el-segmented v-model="range" :options="RANGE_OPTIONS" size="small" />
+          <div class="range-scroll">
+            <el-segmented v-model="range" :options="RANGE_OPTIONS" size="small" />
+          </div>
         </div>
       </div>
 
@@ -605,7 +616,9 @@ onBeforeUnmount(() => {
 .toolbar-right {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
+  min-width: 0;
 }
 
 .zoom-hint {
@@ -655,6 +668,13 @@ onBeforeUnmount(() => {
   padding: 2px;
 }
 
+:deep(.el-segmented__item) {
+  flex: 0 0 auto;
+  min-height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
 :deep(.chart-tip) {
   min-width: 160px;
 }
@@ -676,5 +696,90 @@ onBeforeUnmount(() => {
   height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
+}
+
+.range-scroll {
+  max-width: 100%;
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .etf-card {
+    --el-card-padding: 14px 12px 12px;
+    border-radius: 12px;
+  }
+
+  .card-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .meta {
+    justify-content: flex-start;
+  }
+
+  .title {
+    font-size: 16px;
+  }
+
+  .index-tag {
+    font-size: 12px;
+  }
+
+  .badge {
+    font-size: 11px;
+    max-width: 100%;
+    white-space: normal;
+    line-height: 1.4;
+  }
+
+  .summary {
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .divider {
+    width: 100%;
+    height: 1px;
+    margin: 0;
+  }
+
+  .value {
+    font-size: 20px;
+  }
+
+  .chart-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .toolbar-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .range-scroll {
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+
+  .range-scroll :deep(.el-segmented) {
+    width: max-content;
+    min-width: max-content;
+  }
+
+  .chart-wrap {
+    height: 260px;
+  }
+
+  .zoom-hint {
+    font-size: 11px;
+  }
 }
 </style>

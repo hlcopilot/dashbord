@@ -25,7 +25,12 @@ import TurnoverPercentileCard from '@/components/TurnoverPercentileCard.vue'
 <style scoped>
 .page {
   min-height: 100vh;
+  min-height: 100dvh;
   padding: 40px 24px 64px;
+  padding-top: max(40px, env(safe-area-inset-top, 0px));
+  padding-right: max(24px, env(safe-area-inset-right, 0px));
+  padding-bottom: max(64px, env(safe-area-inset-bottom, 0px));
+  padding-left: max(24px, env(safe-area-inset-left, 0px));
 }
 
 .page-header {
@@ -56,6 +61,9 @@ import TurnoverPercentileCard from '@/components/TurnoverPercentileCard.vue'
   margin: 0;
   color: #8a919f;
   font-size: 13px;
+  line-height: 1.5;
+  max-width: 240px;
+  text-align: right;
 }
 
 .page-main {
@@ -63,20 +71,37 @@ import TurnoverPercentileCard from '@/components/TurnoverPercentileCard.vue'
   flex-direction: column;
   align-items: center;
   gap: 20px;
+  width: 100%;
 }
 
 @media (max-width: 640px) {
   .page {
-    padding: 24px 14px 48px;
+    padding: 20px 12px 40px;
+    padding-top: max(20px, env(safe-area-inset-top, 0px));
+    padding-right: max(12px, env(safe-area-inset-right, 0px));
+    padding-bottom: max(40px, env(safe-area-inset-bottom, 0px));
+    padding-left: max(12px, env(safe-area-inset-left, 0px));
   }
 
   .page-header {
     flex-direction: column;
     align-items: flex-start;
+    margin-bottom: 16px;
+    gap: 8px;
   }
 
   .page-header h1 {
-    font-size: 24px;
+    font-size: 22px;
+  }
+
+  .subtitle {
+    max-width: none;
+    text-align: left;
+    font-size: 12px;
+  }
+
+  .page-main {
+    gap: 14px;
   }
 }
 </style>

@@ -16,14 +16,17 @@ import VChart from 'vue-echarts'
 import { ArrowDown, ArrowUp, Refresh, RefreshRight } from '@element-plus/icons-vue'
 import { fetchHsTurnoverSeries, sliceByRange } from '@/api/market'
 import type { DailyTurnover, RangeKey, TurnoverSeriesResult } from '@/types/market'
+import { useNarrowScreen } from '@/composables/useNarrowScreen'
 import {
   buildTimeAxisDataZoom,
   buildTimeAxisToolbox,
-  CHART_TIME_ZOOM_GRID_BOTTOM,
+  chartTimeZoomGridBottom,
 } from '@/utils/chartTimeZoom'
 import { formatDisplayDate } from '@/utils/date'
 import { formatAmountYi, formatNumber } from '@/utils/format'
 import IntradayTurnoverDialog from '@/components/IntradayTurnoverDialog.vue'
+
+const narrow = useNarrowScreen()
 
 use([
   CanvasRenderer,
@@ -67,9 +70,18 @@ const ctxMenu = ref({
   x: 0,
   y: 0,
   date: '',
+  /** 窄屏长按用底部操作条，避免跟手指坐标错位 */
+  sheet: false,
 })
 const intradayOpen = ref(false)
 const intradayDate = ref('')
+
+/** 长按后短暂忽略 window click，避免菜单立刻被关掉 */
+let suppressCtxCloseUntil = 0
+let longPressTimer: ReturnType<typeof setTimeout> | null = null
+let longPressStart = { x: 0, y: 0 }
+const LONG_PRESS_MS = 480
+const LONG_PRESS_MOVE_PX = 12
 
 const rangedSeries = computed(() =>
   result.value ? sliceByRange(result.value.series, range.value) : [],
@@ -116,22 +128,33 @@ function onAxisPointer(params: {
 }
 
 function closeCtxMenu() {
+  if (Date.now() < suppressCtxCloseUntil) return
   ctxMenu.value.visible = false
 }
 
-function onChartContextMenu(e: MouseEvent) {
-  e.preventDefault()
+function clearLongPressTimer() {
+  if (longPressTimer != null) {
+    clearTimeout(longPressTimer)
+    longPressTimer = null
+  }
+}
+
+type ChartPixelApi = {
+  containPixel?: (finder: string, value: number[]) => boolean
+  convertFromPixel?: (finder: object, value: number[]) => number[]
+  getDom?: () => HTMLElement
+}
+
+function resolveDateAtClientPoint(clientX: number, clientY: number): string | null {
   const list = rangedSeries.value
-  if (!list.length) return
+  if (!list.length) return null
 
   let idx = hoverIndex.value
-  const chart = chartRef.value as unknown as {
-    containPixel?: (finder: string, value: number[]) => boolean
-    convertFromPixel?: (finder: object, value: number[]) => number[]
-  } | null
-
-  if (chart?.containPixel && chart.convertFromPixel) {
-    const point = [e.offsetX, e.offsetY]
+  const chart = chartRef.value as unknown as ChartPixelApi | null
+  const dom = chart?.getDom?.()
+  if (chart?.containPixel && chart.convertFromPixel && dom) {
+    const rect = dom.getBoundingClientRect()
+    const point = [clientX - rect.left, clientY - rect.top]
     if (chart.containPixel('grid', point)) {
       const data = chart.convertFromPixel({ seriesIndex: 0 }, point)
       if (typeof data?.[0] === 'number') idx = Math.round(data[0])
@@ -139,22 +162,81 @@ function onChartContextMenu(e: MouseEvent) {
   }
 
   if (idx < 0 || idx >= list.length) idx = list.length - 1
-  const point = list[idx]
-  if (!point) return
+  return list[idx]?.date ?? null
+}
 
+function openCtxMenuAt(clientX: number, clientY: number, asSheet: boolean) {
+  const date = resolveDateAtClientPoint(clientX, clientY)
+  if (!date) return
+
+  const pad = 8
+  const menuW = asSheet ? Math.min(320, window.innerWidth - 24) : 168
+  const menuH = 44
+  let x = clientX
+  let y = clientY
+  if (asSheet) {
+    x = Math.max(pad, (window.innerWidth - menuW) / 2)
+    y = Math.max(pad, window.innerHeight - menuH - 24 - (window.visualViewport?.offsetTop ?? 0))
+  } else {
+    x = Math.min(Math.max(pad, clientX), window.innerWidth - menuW - pad)
+    y = Math.min(Math.max(pad, clientY), window.innerHeight - menuH - pad)
+  }
+
+  suppressCtxCloseUntil = Date.now() + 400
   ctxMenu.value = {
     visible: true,
-    x: e.clientX,
-    y: e.clientY,
-    date: point.date,
+    x,
+    y,
+    date,
+    sheet: asSheet,
   }
+}
+
+function onChartContextMenu(e: MouseEvent) {
+  e.preventDefault()
+  // 触控长按也会冒泡 contextmenu；统一走底部条，避免桌面菜单坐标错位
+  openCtxMenuAt(e.clientX, e.clientY, narrow.value)
+}
+
+function onChartTouchStart(e: TouchEvent) {
+  if (!narrow.value) return
+  const t = e.touches[0]
+  if (!t) return
+  longPressStart = { x: t.clientX, y: t.clientY }
+  clearLongPressTimer()
+  longPressTimer = setTimeout(() => {
+    longPressTimer = null
+    openCtxMenuAt(longPressStart.x, longPressStart.y, true)
+    try {
+      navigator.vibrate?.(10)
+    } catch {
+      /* ignore */
+    }
+  }, LONG_PRESS_MS)
+}
+
+function onChartTouchMove(e: TouchEvent) {
+  if (longPressTimer == null) return
+  const t = e.touches[0]
+  if (!t) return
+  if (
+    Math.abs(t.clientX - longPressStart.x) > LONG_PRESS_MOVE_PX ||
+    Math.abs(t.clientY - longPressStart.y) > LONG_PRESS_MOVE_PX
+  ) {
+    clearLongPressTimer()
+  }
+}
+
+function onChartTouchEnd() {
+  clearLongPressTimer()
 }
 
 function openIntraday() {
   if (!ctxMenu.value.date) return
   intradayDate.value = ctxMenu.value.date
   intradayOpen.value = true
-  closeCtxMenu()
+  suppressCtxCloseUntil = 0
+  ctxMenu.value.visible = false
 }
 
 function buildTooltipHtml(dataIndex: number): string {
@@ -288,11 +370,11 @@ const chartOption = computed(() => {
     grid: {
       left: 8,
       right: 16,
-      top: 36,
-      bottom: CHART_TIME_ZOOM_GRID_BOTTOM,
+      top: narrow.value ? 28 : 36,
+      bottom: chartTimeZoomGridBottom(narrow.value),
       containLabel: true,
     },
-    toolbox: buildTimeAxisToolbox({ accentColor: '#3b82f6' }),
+    toolbox: buildTimeAxisToolbox({ accentColor: '#3b82f6', narrow: narrow.value }),
     tooltip: {
       trigger: 'axis',
       backgroundColor: 'rgba(245, 246, 248, 0.96)',
@@ -325,8 +407,9 @@ const chartOption = computed(() => {
       start: zoomStart.value,
       end: zoomEnd.value,
       accentColor: COLOR_AMOUNT,
-      left: 48,
-      right: 24,
+      left: narrow.value ? 8 : 48,
+      right: narrow.value ? 8 : 24,
+      narrow: narrow.value,
     }),
     xAxis: {
       type: 'category',
@@ -465,11 +548,14 @@ onMounted(() => {
   void load()
   window.addEventListener('click', closeCtxMenu)
   window.addEventListener('scroll', closeCtxMenu, true)
+  window.addEventListener('touchstart', closeCtxMenu, { passive: true })
 })
 
 onBeforeUnmount(() => {
+  clearLongPressTimer()
   window.removeEventListener('click', closeCtxMenu)
   window.removeEventListener('scroll', closeCtxMenu, true)
+  window.removeEventListener('touchstart', closeCtxMenu)
 })
 </script>
 
@@ -543,15 +629,30 @@ onBeforeUnmount(() => {
           >
             重置
           </el-button>
-          <el-segmented v-model="range" :options="RANGE_OPTIONS" size="small" />
+          <div class="range-scroll">
+            <el-segmented v-model="range" :options="RANGE_OPTIONS" size="small" />
+          </div>
         </div>
       </div>
 
       <p class="zoom-hint">
-        右键某日可打开「当日分时」（含今日虚线点）；分时会写入 data/intraday 本地积累。也可框选/拖动/滚轮缩放
+        <template v-if="narrow">
+          长按某日打开「当日分时」（含今日虚线点）；缩放请拖底部时间轴。分时会写入本地积累。
+        </template>
+        <template v-else>
+          右键某日可打开「当日分时」（含今日虚线点）；分时会写入 data/intraday
+          本地积累。也可框选/拖动/滚轮缩放
+        </template>
       </p>
 
-      <div class="chart-wrap" @contextmenu="onChartContextMenu">
+      <div
+        class="chart-wrap"
+        @contextmenu="onChartContextMenu"
+        @touchstart.passive="onChartTouchStart"
+        @touchmove.passive="onChartTouchMove"
+        @touchend="onChartTouchEnd"
+        @touchcancel="onChartTouchEnd"
+      >
         <v-chart
           ref="chartRef"
           class="chart"
@@ -571,7 +672,7 @@ onBeforeUnmount(() => {
           </el-icon>
         </button>
         <p v-show="guideOpen" class="guide-body">
-          「成交额百分位」衡量当前两市成交额在近 3 年历史中的相对位置。百分位越低，说明资金活跃度越偏冷；越高则交投越热。该指标需结合估值、政策与情绪综合判断，不宜单独作为买卖依据。右键交易日可查看当日分钟级两市成交额分时。
+          「成交额百分位」衡量当前两市成交额在近 3 年历史中的相对位置。百分位越低，说明资金活跃度越偏冷；越高则交投越热。该指标需结合估值、政策与情绪综合判断，不宜单独作为买卖依据。桌面右键、手机长按交易日可查看当日分钟级两市成交额分时。
           <span class="guide-emphasis">日成交额不到万亿很可能是熊市底部。</span>
         </p>
       </div>
@@ -582,8 +683,14 @@ onBeforeUnmount(() => {
     <div
       v-if="ctxMenu.visible"
       class="ctx-menu"
-      :style="{ left: `${ctxMenu.x}px`, top: `${ctxMenu.y}px` }"
+      :class="{ 'ctx-menu--sheet': ctxMenu.sheet }"
+      :style="
+        ctxMenu.sheet
+          ? undefined
+          : { left: `${ctxMenu.x}px`, top: `${ctxMenu.y}px` }
+      "
       @click.stop
+      @touchstart.stop
     >
       <button type="button" class="ctx-menu__item" @click="openIntraday">
         当日分时
@@ -713,11 +820,11 @@ onBeforeUnmount(() => {
 }
 
 .toolbar-right {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
+  min-width: 0;
 }
 
 .legend {
@@ -744,6 +851,8 @@ onBeforeUnmount(() => {
 
 .chart-wrap {
   height: 320px;
+  -webkit-touch-callout: none;
+  user-select: none;
 }
 
 .chart {
@@ -790,26 +899,77 @@ onBeforeUnmount(() => {
 }
 
 :deep(.el-segmented__item) {
+  flex: 0 0 auto;
   min-height: 26px;
-  padding: 0 12px;
+  padding: 0 10px;
   font-size: 12px;
 }
 
+.range-scroll {
+  max-width: 100%;
+  min-width: 0;
+}
+
 @media (max-width: 640px) {
+  .turnover-card {
+    --el-card-padding: 14px 12px 12px;
+    border-radius: 12px;
+  }
+
   .card-header {
     flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .meta {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .title {
+    font-size: 16px;
+  }
+
+  .summary {
+    margin: 4px 0 12px;
   }
 
   .summary-item .value {
-    font-size: 28px;
+    font-size: 22px;
   }
 
   .chart-toolbar {
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .toolbar-right {
+    width: 100%;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .range-scroll {
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+
+  .range-scroll :deep(.el-segmented) {
+    width: max-content;
+    min-width: max-content;
   }
 
   .chart-wrap {
-    height: 280px;
+    height: 260px;
+  }
+
+  .zoom-hint {
+    font-size: 11px;
   }
 }
 </style>

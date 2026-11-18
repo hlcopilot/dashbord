@@ -17,13 +17,16 @@ import VChart from 'vue-echarts'
 import { ArrowDown, ArrowUp, Refresh, RefreshRight } from '@element-plus/icons-vue'
 import { fetchMarginSeries, sliceMarginByRange } from '@/api/margin'
 import type { MarginDaily, MarginSeriesResult, RangeKey } from '@/types/market'
+import { useNarrowScreen } from '@/composables/useNarrowScreen'
 import {
   buildTimeAxisDataZoom,
   buildTimeAxisToolbox,
-  CHART_TIME_ZOOM_GRID_BOTTOM,
+  chartTimeZoomGridBottom,
 } from '@/utils/chartTimeZoom'
 import { formatDisplayDate } from '@/utils/date'
 import { formatAmountYi, formatNumber } from '@/utils/format'
+
+const narrow = useNarrowScreen()
 
 use([
   CanvasRenderer,
@@ -190,11 +193,11 @@ const chartOption = computed(() => {
     grid: {
       left: 8,
       right: 16,
-      top: 36,
-      bottom: CHART_TIME_ZOOM_GRID_BOTTOM,
+      top: narrow.value ? 28 : 36,
+      bottom: chartTimeZoomGridBottom(narrow.value),
       containLabel: true,
     },
-    toolbox: buildTimeAxisToolbox({ accentColor: COLOR_MARGIN }),
+    toolbox: buildTimeAxisToolbox({ accentColor: COLOR_MARGIN, narrow: narrow.value }),
     tooltip: {
       trigger: 'axis',
       backgroundColor: 'rgba(245, 246, 248, 0.96)',
@@ -218,8 +221,9 @@ const chartOption = computed(() => {
       start: zoomStart.value,
       end: zoomEnd.value,
       accentColor: COLOR_MARGIN,
-      left: 56,
-      right: 56,
+      left: narrow.value ? 8 : 56,
+      right: narrow.value ? 8 : 56,
+      narrow: narrow.value,
     }),
     xAxis: {
       type: 'category',
@@ -442,7 +446,9 @@ onMounted(() => {
           >
             重置
           </el-button>
-          <el-segmented v-model="range" :options="RANGE_OPTIONS" size="small" />
+          <div class="range-scroll">
+            <el-segmented v-model="range" :options="RANGE_OPTIONS" size="small" />
+          </div>
         </div>
       </div>
 
@@ -593,11 +599,11 @@ onMounted(() => {
 }
 
 .toolbar-right {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
+  min-width: 0;
 }
 
 .legend {
@@ -684,24 +690,66 @@ onMounted(() => {
 }
 
 :deep(.el-segmented__item) {
+  flex: 0 0 auto;
   min-height: 26px;
-  padding: 0 12px;
+  padding: 0 10px;
   font-size: 12px;
 }
 
+.range-scroll {
+  max-width: 100%;
+  min-width: 0;
+}
+
 @media (max-width: 640px) {
+  .margin-card {
+    --el-card-padding: 14px 12px 12px;
+    border-radius: 12px;
+  }
+
   .card-header,
   .chart-toolbar {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
+  }
+
+  .meta {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .title {
+    font-size: 16px;
   }
 
   .summary-item .value {
-    font-size: 24px;
+    font-size: 22px;
+  }
+
+  .toolbar-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .range-scroll {
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+
+  .range-scroll :deep(.el-segmented) {
+    width: max-content;
+    min-width: max-content;
   }
 
   .chart-wrap {
-    height: 280px;
+    height: 260px;
+  }
+
+  .zoom-hint {
+    font-size: 11px;
   }
 }
 </style>

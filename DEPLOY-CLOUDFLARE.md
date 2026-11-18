@@ -157,3 +157,5 @@ npm run cf:kv:seed
 ## 手机访问
 
 部署并挂好 `/api` Route 后，Android Chrome 打开 `https://<项目>.pages.dev`（或自定义域）即可，无需电脑常开、无需同一 Wi‑Fi。
+
+前端须按 **[docs/H5-MOBILE.md](./docs/H5-MOBILE.md)** 做窄屏适配（Pages 是手机主入口）；改卡片/图表时桌面与 H5 一起验收。

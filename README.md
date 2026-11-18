@@ -11,7 +11,8 @@ Vue 3 + Vite + TypeScript + Element Plus + ECharts 的投资看板前端。打�
 - **东方财富**：近约 5 个交易日分时成交额
 - **本地归档**：`data/intraday/*.json`、`data/series/*.json`、`data/etf-share/*.json`（缓存优先，日常增量）
 
-数据拉取 / 画图取数策略详见 **[docs/DATA-CACHE-STRATEGY.md](./docs/DATA-CACHE-STRATEGY.md)**。
+数据拉取 / 画图取数策略详见 **[docs/DATA-CACHE-STRATEGY.md](./docs/DATA-CACHE-STRATEGY.md)**。  
+桌面 + 手机 H5 双端适配详见 **[docs/H5-MOBILE.md](./docs/H5-MOBILE.md)**（Agent 约束：`.cursor/rules/h5-mobile.mdc`）。
 
 ## 快速开始
 
@@ -23,7 +24,7 @@ npm run dev
 ```
 
 浏览器打开终端提示的本地地址（默认 `http://localhost:5173`）。  
-同 Wi‑Fi 下手机可访问终端里的 Network 地址（已开启 `server.host`）。
+同 Wi‑Fi 下手机可访问终端里的 Network 地址（已开启 `server.host`）。开发时请用 DevTools 设备模式或真机各验一遍（断点 640px）。
 
 > 本地归档依赖 Vite 开发中间件，请用 `npm run dev`（或 `npm run preview`）访问，不要只用静态 `dist` 打开。
 ## 云端部署（Cloudflare Pages + Worker）
@@ -43,10 +44,11 @@ npm run deploy:cf             # Pages + Worker
 ## 功能
 
 - **成交额卡片**：沪深两市成交额、近 3 年百分位、区间切换、缩放、高低点/均值
-- **今日盘中点**：搜狐日线尚未入库时，用分时累计在曲线末端补蓝色虚线点，右键同样可进「当日分时」
-- **当日分时**：右键某日 → 今日/前一日累计成交额对比 + 增减柱状
+- **今日盘中点**：搜狐日线尚未入库时，用分时累计在曲线末端补蓝色虚线点；桌面右键 / 手机长按可进「当日分时」
+- **当日分时**：桌面右键或手机长按某日 → 今日/前一日累计成交额对比 + 增减柱状（H5 为底部操作条）
 - **两融余额卡片**：两融余额（左轴）+ 上证指数（右轴），同样支持区间/缩放/高低点/均值
-- **ETF 净流入卡片**：默认 510300，按「份额变动 × 收盘价」估算日净申赎（大资金代理口径）；份额/收盘价优先本地缓存，日常只补增量。首次全量：`npm run etf:seed`
+- **ETF 净流入**：20 只宽基篮子，按「份额变动 × 收盘价」估算日净申赎；份额/收盘价优先本地缓存，日常只补增量。首次全量：`npm run etf:seed`
+- **H5 适配**：窄屏弱化图内拖移、区间 tab 可横滑、弹层全宽；详见 `docs/H5-MOBILE.md`
 - **本地积累**：分时写入 `data/intraday/`；成交额/两融写入 `data/series/`（与 ETF 同一套缓存优先策略）
 
 ## 数据说明
