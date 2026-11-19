@@ -12,9 +12,7 @@ dist
 dist-ssr
 *.local
 
-# 行情本地缓存（可再生成）
-data/etf-share/
-data/series/
+# data/** 行情缓存一律进仓库（日频 + 分钟归档），作为长期积累；勿再 ignore
 
 # Editor directories and files
 .vscode/*

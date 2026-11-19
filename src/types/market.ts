@@ -102,3 +102,48 @@ export interface EtfFlowSeriesResult {
   warnings?: string[]
   note: string
 }
+
+/** ETF 当日（或近几日）1 分钟 K */
+export interface EtfIntradayBar {
+  /** HH:mm */
+  time: string
+  open: number
+  close: number
+  high: number
+  low: number
+  /** 成交量（股） */
+  volume: number
+  /** 成交额（亿元） */
+  amountYi: number
+}
+
+export interface EtfIntradayResult {
+  code: string
+  name: string
+  date: string
+  /** kline / trends2 来自远端；cache 表示仅命中本地/KV 归档 */
+  source: 'kline' | 'trends2' | 'cache'
+  bars: EtfIntradayBar[]
+  open: number
+  close: number
+  high: number
+  low: number
+  volume: number
+  amountYi: number
+}
+
+/** 本地 / KV 归档的单日 ETF 分钟 K（data/etf-intraday/{code}/YYYY-MM-DD.json） */
+export interface LocalEtfIntradayDay {
+  date: string
+  code: string
+  name?: string
+  updatedAt: string
+  source: 'kline' | 'trends2'
+  bars: EtfIntradayBar[]
+  open: number
+  close: number
+  high: number
+  low: number
+  volume: number
+  amountYi: number
+}

@@ -25,6 +25,7 @@ import {
 } from '@/utils/chartTimeZoom'
 import { formatDisplayDate } from '@/utils/date'
 import { formatAmountYi, formatNumber } from '@/utils/format'
+import EtfIntradayDialog from '@/components/EtfIntradayDialog.vue'
 
 const narrow = useNarrowScreen()
 
@@ -63,6 +64,7 @@ const RANGE_OPTIONS: Array<{ label: string; value: RangeKey }> = [
 ]
 
 const rootRef = useTemplateRef<HTMLElement>('rootRef')
+const chartRef = useTemplateRef<InstanceType<typeof VChart>>('chartRef')
 const loading = ref(false)
 const waitingView = ref(true)
 const error = ref('')
@@ -73,6 +75,21 @@ const zoomStart = ref(0)
 const zoomEnd = ref(100)
 /** 区间切换时递增，给 v-chart 换 key，清掉 ECharts 内部缩放状态 */
 const chartEpoch = ref(0)
+const hoverIndex = ref(-1)
+const ctxMenu = ref({
+  visible: false,
+  x: 0,
+  y: 0,
+  date: '',
+  sheet: false,
+})
+const intradayOpen = ref(false)
+const intradayDate = ref('')
+let suppressCtxCloseUntil = 0
+let longPressTimer: ReturnType<typeof setTimeout> | null = null
+let longPressStart = { x: 0, y: 0 }
+const LONG_PRESS_MS = 480
+const LONG_PRESS_MOVE_PX = 12
 let observer: IntersectionObserver | null = null
 let loadedOnce = false
 
@@ -118,6 +135,118 @@ watch(range, () => {
   zoomEnd.value = 100
   chartEpoch.value += 1
 })
+
+function onAxisPointer(params: {
+  dataIndex?: number
+  batch?: Array<{ dataIndex?: number }>
+}) {
+  const idx = params.dataIndex ?? params.batch?.[0]?.dataIndex
+  if (typeof idx === 'number') hoverIndex.value = idx
+}
+
+function closeCtxMenu() {
+  if (Date.now() < suppressCtxCloseUntil) return
+  ctxMenu.value.visible = false
+}
+
+function clearLongPressTimer() {
+  if (longPressTimer != null) {
+    clearTimeout(longPressTimer)
+    longPressTimer = null
+  }
+}
+
+type ChartPixelApi = {
+  containPixel?: (finder: string, value: number[]) => boolean
+  convertFromPixel?: (finder: object, value: number[]) => number[]
+  getDom?: () => HTMLElement
+}
+
+function resolveDateAtClientPoint(clientX: number, clientY: number): string | null {
+  const list = rangedSeries.value
+  if (!list.length) return null
+
+  let idx = hoverIndex.value
+  const chart = chartRef.value as unknown as ChartPixelApi | null
+  const dom = chart?.getDom?.()
+  if (chart?.containPixel && chart.convertFromPixel && dom) {
+    const point = [clientX - dom.getBoundingClientRect().left, clientY - dom.getBoundingClientRect().top]
+    if (chart.containPixel('grid', point)) {
+      const data = chart.convertFromPixel({ seriesIndex: 0 }, point)
+      if (typeof data?.[0] === 'number') idx = Math.round(data[0])
+    }
+  }
+
+  if (idx < 0 || idx >= list.length) idx = list.length - 1
+  return list[idx]?.date ?? null
+}
+
+function openCtxMenuAt(clientX: number, clientY: number, asSheet: boolean) {
+  const date = resolveDateAtClientPoint(clientX, clientY)
+  if (!date) return
+
+  const pad = 8
+  const menuW = asSheet ? Math.min(320, window.innerWidth - 24) : 168
+  const menuH = 44
+  let x = clientX
+  let y = clientY
+  if (asSheet) {
+    x = Math.max(pad, (window.innerWidth - menuW) / 2)
+    y = Math.max(pad, window.innerHeight - menuH - 24)
+  } else {
+    x = Math.min(Math.max(pad, clientX), window.innerWidth - menuW - pad)
+    y = Math.min(Math.max(pad, clientY), window.innerHeight - menuH - pad)
+  }
+
+  suppressCtxCloseUntil = Date.now() + 400
+  ctxMenu.value = { visible: true, x, y, date, sheet: asSheet }
+}
+
+function onChartContextMenu(e: MouseEvent) {
+  e.preventDefault()
+  openCtxMenuAt(e.clientX, e.clientY, narrow.value)
+}
+
+function onChartTouchStart(e: TouchEvent) {
+  if (!narrow.value) return
+  const t = e.touches[0]
+  if (!t) return
+  longPressStart = { x: t.clientX, y: t.clientY }
+  clearLongPressTimer()
+  longPressTimer = setTimeout(() => {
+    longPressTimer = null
+    openCtxMenuAt(longPressStart.x, longPressStart.y, true)
+    try {
+      navigator.vibrate?.(10)
+    } catch {
+      /* ignore */
+    }
+  }, LONG_PRESS_MS)
+}
+
+function onChartTouchMove(e: TouchEvent) {
+  if (longPressTimer == null) return
+  const t = e.touches[0]
+  if (!t) return
+  if (
+    Math.abs(t.clientX - longPressStart.x) > LONG_PRESS_MOVE_PX ||
+    Math.abs(t.clientY - longPressStart.y) > LONG_PRESS_MOVE_PX
+  ) {
+    clearLongPressTimer()
+  }
+}
+
+function onChartTouchEnd() {
+  clearLongPressTimer()
+}
+
+function openIntraday() {
+  if (!ctxMenu.value.date) return
+  intradayDate.value = ctxMenu.value.date
+  intradayOpen.value = true
+  suppressCtxCloseUntil = 0
+  ctxMenu.value.visible = false
+}
 
 function tipRow(color: string, text: string) {
   return `<div class="chart-tip__row"><span class="chart-tip__dot" style="background:${color}"></span><span>${text}</span></div>`
@@ -265,6 +394,9 @@ function reload() {
 
 onMounted(() => {
   if (props.showGuide) guideOpen.value = true
+  window.addEventListener('click', closeCtxMenu)
+  window.addEventListener('scroll', closeCtxMenu, true)
+  window.addEventListener('touchstart', closeCtxMenu, { passive: true })
   const el = rootRef.value
   if (!el || typeof IntersectionObserver === 'undefined') {
     void load()
@@ -284,6 +416,10 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  clearLongPressTimer()
+  window.removeEventListener('click', closeCtxMenu)
+  window.removeEventListener('scroll', closeCtxMenu, true)
+  window.removeEventListener('touchstart', closeCtxMenu)
   observer?.disconnect()
   observer = null
 })
@@ -404,20 +540,32 @@ onBeforeUnmount(() => {
       </div>
 
       <p class="zoom-hint">
-        红柱净申购、绿柱净赎回（亿元）；折线为总份额。可滚轮/拖移缩放，底部滑条与右上角框选时段与成交额图一致。优先读本地缓存，日常只补增量。
+        红柱净申购、绿柱净赎回（亿元）；折线为总份额。
+        <template v-if="narrow">长按某日可看当日分钟 K（量/额；近 5 日同步进归档可积累）。</template>
+        <template v-else>右键某日可看当日分钟 K（量/额；近 5 日同步进归档可积累）。</template>
+        优先读本地缓存，日常只补增量。
         <template v-if="result.missingShareCount">
           历史份额仍缺 {{ result.missingShareCount }} 日，可运行
           <code>npm run etf:seed</code> 全量回填。
         </template>
       </p>
 
-      <div class="chart-wrap">
+      <div
+        class="chart-wrap"
+        @contextmenu="onChartContextMenu"
+        @touchstart.passive="onChartTouchStart"
+        @touchmove.passive="onChartTouchMove"
+        @touchend="onChartTouchEnd"
+        @touchcancel="onChartTouchEnd"
+      >
         <v-chart
+          ref="chartRef"
           :key="chartInstanceKey"
           class="chart"
           :option="chartOption"
           autoresize
           @datazoom="onDataZoom"
+          @updateaxispointer="onAxisPointer"
         />
       </div>
 
@@ -432,11 +580,38 @@ onBeforeUnmount(() => {
         <p v-show="guideOpen" class="guide-body">
           宽基 ETF 按全天口径估算：净流入 ≈（当日总份额 − 前一日总份额）×
           收盘价。民间常把异常大净申购当作「大资金／国家队」代理，但并非官方标签；也可能含套利、做市与普通机构。沪市份额来自上交所、深市来自深交所，通常
-          T+1，当日可能暂缺。本页对齐 20 只热门宽基篮子，每张图标注所属指数。
+          T+1，当日可能暂缺。本页对齐 20 只热门宽基篮子，每张图标注所属指数。桌面右键 /
+          手机长按交易日可查看该日分钟 K（价格 + 成交量/额），与净流入口径无关。
         </p>
       </div>
     </template>
   </el-card>
+
+  <teleport to="body">
+    <div
+      v-if="ctxMenu.visible"
+      class="ctx-menu"
+      :class="{ 'ctx-menu--sheet': ctxMenu.sheet }"
+      :style="
+        ctxMenu.sheet ? undefined : { left: `${ctxMenu.x}px`, top: `${ctxMenu.y}px` }
+      "
+      @click.stop
+      @touchstart.stop
+    >
+      <button type="button" class="ctx-menu__item" @click="openIntraday">
+        当日分钟K
+        <span class="ctx-menu__date">{{ formatDisplayDate(ctxMenu.date) }}</span>
+      </button>
+    </div>
+  </teleport>
+
+  <EtfIntradayDialog
+    v-model="intradayOpen"
+    :date="intradayDate"
+    :code="code"
+    :name="meta.name"
+    :secid="meta.secid"
+  />
   </div>
 </template>
 
@@ -629,6 +804,8 @@ onBeforeUnmount(() => {
 
 .chart-wrap {
   height: 340px;
+  -webkit-touch-callout: none;
+  user-select: none;
 }
 
 .chart {

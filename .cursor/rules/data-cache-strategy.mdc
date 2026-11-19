@@ -28,7 +28,7 @@ alwaysApply: true
 
 ## 数据硬性约束
 
-1. **新增/改日频序列默认缓存优先**：本地 `data/` +（云端）Worker KV；禁止让前端每次打开页面直连上游拉全历史。
+1. **新增/改日频序列默认缓存优先**：本地 `data/` +（云端）Worker KV；禁止让前端每次打开页面直连上游拉全历史。**`data/**` 一律提交 Git**（含 `series` / `etf-share` / `intraday` / `etf-intraday`），勿再 ignore。
 2. **日常只增量**：搜狐用 `start/end` 窗口；东财分页倒序早停；ETF 份额只补缺日。不要恢复「每次从 2010/2015 拉到今天」的主路径。
 3. **收盘前门闩**：未到上海 15:00，日频不写入/不增量「今天」；ETF 份额永不拉「今天」（T+1）。逻辑在 `market-session.ts`。
 4. **画图取数**：卡片只消费聚合 API（`/api/turnover/series`、`/api/margin/series`、`/api/etf/flow`、`/api/local/intraday*`）；区间用前端 `slice*ByRange`，不要为缩放再打外部源。
@@ -43,6 +43,7 @@ alwaysApply: true
 | 两融 | `data/series/margin.json` | `series:margin` · `/api/margin/series` |
 | ETF（20 只宽基） | `data/etf-share/{code}.json` | `etfcache:{code}` · `/api/etf/flow?code=` |
 | 分时 | `data/intraday/*.json` | `day:YYYY-MM-DD` · `/api/local/intraday*` |
+| ETF 分钟 K（须提交 Git） | `data/etf-intraday/{code}/*.json` | `etfintra:{code}:{date}` · `/api/local/etf-intraday*` |
 
 ## 反例
 

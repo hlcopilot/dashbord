@@ -22,7 +22,7 @@ alwaysApply: true
 3. **禁止横向撑破**：卡片 `width: min(860px, 100%)`；区间 `el-segmented` 必须包在 `.range-scroll` 内，item `flex: 0 0 auto`，窄屏 `width/min-width: max-content` + `overflow-x: auto`，禁止把「全部」挤成「全」。
 4. **图表手势**：窄屏 `buildTimeAxisDataZoom({ narrow: true })` + `chartTimeZoomGridBottom(narrow)`；弱化图内拖移，缩放靠底部滑条；`buildTimeAxisToolbox({ narrow: true })` 可隐藏。详见 `chart-time-zoom` 规则。
 5. **触控**：主要按钮可点区域够大（约 ≥44px）；弹层宽度 `calc(100vw - 16px)` 一类，禁止写死仅桌面 `860px`。
-6. **桌面专属入口必须有 H5 等价**：例如成交额「当日分时」——桌面右键菜单，窄屏**长按 ≈480ms** 打开底部操作条；禁止只依赖 `contextmenu`。
+6. **桌面专属入口必须有 H5 等价**：成交额「当日分时」、ETF「当日分钟 K」——桌面右键菜单，窄屏**长按 ≈480ms** 打开底部操作条；禁止只依赖 `contextmenu`。
 7. **工具条**：窄屏 `chart-toolbar` 纵向堆叠；`toolbar-right` 全宽，`重置` + 区间横滑与 ETF 卡一致。
 8. **改 H5 必改文档**：同步更新 `docs/H5-MOBILE.md`；新增卡片对照文内检查清单。
 

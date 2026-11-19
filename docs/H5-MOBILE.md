@@ -48,15 +48,18 @@ Agent 约束见仓库 `.cursor/rules/h5-mobile.mdc`（与本文同步维护）�
 | 能力 | 桌面 | H5 |
 | --- | --- | --- |
 | 成交额「当日分时」 | 图表区域右键 → 菜单 | **长按 ≈480ms** → 底部操作条「当日分时」 |
+| ETF「当日分钟 K」 | 图表区域右键 → 菜单 | **长按 ≈480ms** → 底部操作条「当日分钟K」 |
 | 缩放 | 滚轮 / 拖移 / 框选 / 滑条 | 底部滑条 + 快捷区间 |
 | 提示文案 | 写「右键…」 | 窄屏改为「长按…」 |
 
-实现参考：`TurnoverPercentileCard.vue`（长按计时、`ctx-menu--sheet`）、`src/styles/global.css`。
+实现参考：`TurnoverPercentileCard.vue` / `EtfNetFlowCard.vue`（长按计时、`ctx-menu--sheet`）、`src/styles/global.css`。
 
 **规则**：凡是桌面用右键 / hover / 滚轮才能触发的能力，上线前必须有触控等价路径。
 
-## 分时弹层（IntradayTurnoverDialog）
+## 分时 / 分钟 K 弹层
 
+- **成交额分时**：`IntradayTurnoverDialog`（对比前一日累计成交额）。
+- **ETF 分钟 K**：`EtfIntradayDialog`（仅当日 OHLC + 量/额，非净流入；打开时同步近约 5 日并写入 `data/etf-intraday` / KV，更早靠归档）。
 - 宽度 / top：随 `useNarrowScreen(720)`。
 - 窄屏：summary 单列、图左右留白减小、图高约 `min(320px, 52vh)`。
 - 图表 option 内读取 `narrow`，勿写死仅桌面 `grid.left: 52`。

@@ -1,7 +1,8 @@
 /**
  * Cloudflare Worker：承接 /api/*
  * - 行情代理（搜狐 / 东财 / 新浪）
- * - 分时归档（KV，对应本地 data/intraday）
+ * - 成交额分时归档（KV day:，对应 data/intraday）
+ * - ETF 分钟 K 归档（KV etfintra:，对应 data/etf-intraday）
  * - ETF 申赎净流入（沪/深交易所份额 + 东财日 K）
  */
 
@@ -105,6 +106,111 @@ async function proxyRequest(request: Request, rule: ProxyRule): Promise<Response
 
 function dayKey(date: string) {
   return `day:${date}`
+}
+
+function etfIntradayKey(code: string, date: string) {
+  return `etfintra:${code}:${date}`
+}
+
+async function handleEtfIntradayArchive(request: Request, env: Env): Promise<Response> {
+  const kv = env.INTRADAY_KV
+  if (!kv) {
+    return json(
+      {
+        message:
+          'INTRADAY_KV 未绑定：代理可用，但云端 ETF 分钟归档不可用。请按 DEPLOY-CLOUDFLARE.md 创建 KV。',
+      },
+      503,
+    )
+  }
+
+  const url = new URL(request.url)
+  const pathname = url.pathname.replace(/\/+$/, '') || '/'
+
+  if (request.method === 'OPTIONS') {
+    return json({ ok: true })
+  }
+
+  // GET /api/local/etf-intraday/:code
+  const listMatch = pathname.match(/^\/api\/local\/etf-intraday\/([0-9A-Za-z]+)$/)
+  if (request.method === 'GET' && listMatch) {
+    const code = listMatch[1]
+    const listed = await kv.list({ prefix: `etfintra:${code}:` })
+    const dates = listed.keys
+      .map((k) => k.name.replace(new RegExp(`^etfintra:${code}:`), ''))
+      .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))
+      .sort()
+    return json({ code, dates })
+  }
+
+  // GET /api/local/etf-intraday/:code/all
+  const allMatch = pathname.match(/^\/api\/local\/etf-intraday\/([0-9A-Za-z]+)\/all$/)
+  if (request.method === 'GET' && allMatch) {
+    const code = allMatch[1]
+    const listed = await kv.list({ prefix: `etfintra:${code}:` })
+    const days: Record<string, unknown> = {}
+    for (const key of listed.keys) {
+      const date = key.name.replace(new RegExp(`^etfintra:${code}:`), '')
+      const raw = await kv.get(key.name)
+      if (!raw) continue
+      try {
+        days[date] = JSON.parse(raw)
+      } catch {
+        // skip
+      }
+    }
+    return json({ code, days })
+  }
+
+  const dayMatch = pathname.match(
+    /^\/api\/local\/etf-intraday\/([0-9A-Za-z]+)\/(\d{4}-\d{2}-\d{2})$/,
+  )
+  if (!dayMatch) return json({ message: 'not found' }, 404)
+  const code = dayMatch[1]
+  const date = dayMatch[2]
+  const key = etfIntradayKey(code, date)
+
+  if (request.method === 'GET') {
+    const raw = await kv.get(key)
+    if (!raw) return json({ message: `no etf intraday archive for ${code} ${date}` }, 404)
+    return new Response(raw, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Access-Control-Allow-Origin': '*',
+      },
+    })
+  }
+
+  if (request.method === 'PUT') {
+    const body = await request.json<{
+      date?: string
+      code?: string
+      bars?: unknown[]
+      updatedAt?: string
+      source?: string
+      name?: string
+      open?: number
+      close?: number
+      high?: number
+      low?: number
+      volume?: number
+      amountYi?: number
+    }>()
+    if (body.date !== date || body.code !== code || !Array.isArray(body.bars)) {
+      return json({ message: 'invalid payload' }, 400)
+    }
+    const payload = {
+      ...body,
+      date,
+      code,
+      updatedAt: body.updatedAt || new Date().toISOString(),
+    }
+    await kv.put(key, JSON.stringify(payload))
+    return json({ ok: true, code, date })
+  }
+
+  return json({ message: 'method not allowed' }, 405)
 }
 
 async function handleIntradayArchive(request: Request, env: Env): Promise<Response> {
@@ -373,6 +479,10 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
 
   if (request.method === 'OPTIONS') {
     return json({ ok: true })
+  }
+
+  if (pathname.startsWith('/api/local/etf-intraday')) {
+    return handleEtfIntradayArchive(request, env)
   }
 
   if (pathname.startsWith('/api/local/intraday')) {

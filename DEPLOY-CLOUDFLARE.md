@@ -9,7 +9,8 @@
 | 静态页面 | Vite | **Pages**（`dist`） |
 | 成交额/两融/ETF 聚合 API | Vite 插件 + `data/series` 等 | **Worker** + **KV** |
 | `/api/sohu` 等原始代理 | `vite.config.ts` proxy | **Worker**（聚合内部仍会用） |
-| 分时积累 | 写 `data/intraday/*.json` | Worker → **KV** |
+| 分时积累 | 写 `data/intraday/*.json` | Worker → **KV**（`day:`） |
+| ETF 分钟 K 积累 | 写 `data/etf-intraday/{code}/*.json` | Worker → **KV**（`etfintra:`） |
 
 前端仍请求相对路径 `/api/...`，**业务代码不用改**。同域靠「Pages 主机名 + Worker Route `/api/*`」拼起来。
 
@@ -142,8 +143,11 @@ curl http://127.0.0.1:8787/api/local/intraday
 # 单日
 npx wrangler kv key put --config worker/wrangler.toml --binding=INTRADAY_KV "day:2026-11-05" --path=./data/intraday/2026-11-05.json
 
-# 或批量
+# 或批量（成交额分时）
 npm run cf:kv:seed
+
+# ETF 分钟 K（本地 data/etf-intraday 积累后）
+npm run cf:etf-intraday:seed
 ```
 
 ## 注意

@@ -9,7 +9,7 @@ Vue 3 + Vite + TypeScript + Element Plus + ECharts 的投资看板前端。打�
 - **ECharts / vue-echarts**：日线 / 分时成交额图
 - **搜狐财经**：沪深日线成交额
 - **东方财富**：近约 5 个交易日分时成交额
-- **本地归档**：`data/intraday/*.json`、`data/series/*.json`、`data/etf-share/*.json`（缓存优先，日常增量）
+- **本地归档**：`data/intraday/`、`data/etf-intraday/`、`data/series/`、`data/etf-share/`（缓存优先，日常增量；**整棵 `data/` 提交 Git 作长期积累**）
 
 数据拉取 / 画图取数策略详见 **[docs/DATA-CACHE-STRATEGY.md](./docs/DATA-CACHE-STRATEGY.md)**。  
 桌面 + 手机 H5 双端适配详见 **[docs/H5-MOBILE.md](./docs/H5-MOBILE.md)**（Agent 约束：`.cursor/rules/h5-mobile.mdc`）。
@@ -48,6 +48,7 @@ npm run deploy:cf             # Pages + Worker
 - **当日分时**：桌面右键或手机长按某日 → 今日/前一日累计成交额对比 + 增减柱状（H5 为底部操作条）
 - **两融余额卡片**：两融余额（左轴）+ 上证指数（右轴），同样支持区间/缩放/高低点/均值
 - **ETF 净流入**：20 只宽基篮子，按「份额变动 × 收盘价」估算日净申赎；份额/收盘价优先本地缓存，日常只补增量。首次全量：`npm run etf:seed`
+- **ETF 当日分钟 K**：右键/长按交易日 → 当日 OHLC + 成交量/额（非净流入；近 5 日同步写入 `data/etf-intraday`，云端 `cf:etf-intraday:seed`）
 - **H5 适配**：窄屏弱化图内拖移、区间 tab 可横滑、弹层全宽；详见 `docs/H5-MOBILE.md`
 - **本地积累**：分时写入 `data/intraday/`；成交额/两融写入 `data/series/`（与 ETF 同一套缓存优先策略）
 

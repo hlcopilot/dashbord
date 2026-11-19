@@ -19,6 +19,7 @@
 | 成交额主图 | `GET /api/turnover/series` | `data/series/turnover.json` | `series:turnover` | 搜狐 `hisHq` 上证+深成 | `start/end` 从近端重叠日起 | 前端读 API → 可选补今日虚线点 → `sliceByRange` |
 | 两融主图 | `GET /api/margin/series` | `data/series/margin.json` | `series:margin` | 东财 `RPTA_RZRQ_LSHJ` + 搜狐上证 | 倒序分页至缓存重叠早停；上证按日期窗口 | 前端读 API → `sliceMarginByRange` |
 | ETF 净流入（20 只宽基） | `GET /api/etf/flow?code=` | `data/etf-share/{code}.json` | `etfcache:{code}` | 沪：上交所份额；深：深交所 `scsj_fund_jjgm`；东财日 K | 缺日份额 + 近端 T+1 重试；K 线对齐 closes | `EtfFlowSection` 按需请求 → `sliceEtfFlowByRange` |
+| ETF 当日分钟 K | `/api/local/etf-intraday/{code}*` + 东财代理 | `data/etf-intraday/{code}/*.json` | `etfintra:{code}:{date}` | 东财 1 分钟 K（最新日）+ trends2（近约 5 日） | 打开弹层同步近 5 日写回，更早靠归档积累 | 右键/长按日 → `EtfIntradayDialog` |
 | 成交额分时 | `/api/local/intraday*` | `data/intraday/*.json` | `day:YYYY-MM-DD` | 东财 trends2 近约 5 日 | 远端近 5 日覆盖写回，更早保留本地 | `syncIntradayArchive` 合并后再画 |
 
 ## 成交额主图
@@ -50,9 +51,20 @@
 - 打开/同步时：读 `/api/local/intraday/all`，再拉东财近 5 日写回；主图盘中虚线点依赖同一归档。
 - 画图：`fetchIntradayTurnover` → 已合并的本地+近 5 日分钟数据。
 
+## ETF 当日分钟 K（右键 / 长按）
+
+- **不是**净流入分时；份额仍是日频 T+1，分钟图只看价格 OHLC + 成交量/额。
+- **缓存优先**：打开弹层时 `syncEtfIntradayArchive` 拉东财近约 5 日写回归档；更早日期只读本地/KV。
+- 最新交易日优先 `klt=1` 覆盖；其余近日用 `trends2`。
+- 本地：`data/etf-intraday/{code}/YYYY-MM-DD.json`；云端 KV：`etfintra:{code}:{date}`。
+- API：`GET/PUT /api/local/etf-intraday/{code}/...`（Vite 插件与 Worker 对齐）。
+- 云端导入：`npm run cf:etf-intraday:seed`（仓库/本地已积累后）。
+- 入口：`EtfNetFlowCard`；实现：`src/api/etfIntraday.ts` + `EtfIntradayDialog.vue`。
+
 ## 部署注意
 
-- 本地：Vite 插件写 `data/series`、`data/etf-share`、`data/intraday`。
+- 本地：Vite 插件写 `data/series`、`data/etf-share`、`data/intraday`、`data/etf-intraday`。
+- **`data/**` 一律提交 Git**（日频 + 分钟归档都是长期积累；勿再 gitignore）。云端仍可用 `cf:series:seed` / `cf:kv:seed` / `cf:etf-intraday:seed` 灌 KV。
 - 云端：Worker 同源路径读 KV；无自定义域时前端 `VITE_API_BASE` 指向 Worker。
 - 改策略或新增序列后：更新本文 + 本仓库 `.cursor/rules/data-cache-strategy.mdc`，并评估是否需要 seed / 重新 deploy Worker。
 - 前端卡片改动需同时满足桌面 + H5（见 `docs/H5-MOBILE.md`）；云端 Pages 即手机常用入口。
@@ -62,8 +74,9 @@
 ```bash
 npm run series:seed      # 成交额 + 两融本地全量/补齐
 npm run etf:seed         # 20 只宽基份额+收盘价全量/补齐（可加 code 参数单只）
-npm run cf:kv:seed       # 分时 JSON 导入 KV（可选）
-npm run cf:series:seed   # 成交额/两融/全部 etf-share/*.json 导入 KV（云端必做）
-npm run deploy:cf        # Pages + Worker
+npm run cf:kv:seed            # 成交额分时 JSON 导入 KV（可选）
+npm run cf:etf-intraday:seed  # ETF 分钟 K 归档导入 KV（可选，本地积累后）
+npm run cf:series:seed        # 成交额/两融/全部 etf-share/*.json 导入 KV（云端必做）
+npm run deploy:cf             # Pages + Worker
 ```
 
