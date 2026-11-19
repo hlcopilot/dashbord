@@ -65,7 +65,7 @@ const etfs = computed(() => listEtfsByIndex(indexFilter.value))
 
 <style scoped>
 .etf-section {
-  width: min(860px, 100%);
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -100,7 +100,16 @@ const etfs = computed(() => listEtfsByIndex(indexFilter.value))
 .etf-list {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
+}
+
+/* 宽屏双列：单卡并排吃满横向空间，总览卡仍通栏 */
+@media (min-width: 1100px) {
+  .etf-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
 }
 
 @media (max-width: 640px) {

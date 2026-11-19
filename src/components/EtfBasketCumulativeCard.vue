@@ -542,7 +542,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .basket-root {
-  width: min(860px, 100%);
+  width: 100%;
 }
 
 .basket-card {
@@ -732,7 +732,7 @@ onBeforeUnmount(() => {
 }
 
 .chart-wrap {
-  height: 360px;
+  height: var(--chart-h-basket);
 }
 
 .chart {

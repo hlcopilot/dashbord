@@ -9,6 +9,11 @@
   --accent-blue: #3b82f6;
   --chip-bg: #f2f4f7;
   --tooltip-bg: #f5f6f8;
+  /* PC 参考 chinazkk：宽内容区吃满可视宽度，图随屏变宽 */
+  --board-max-width: min(1120px, 100%);
+  --board-gutter-x: 24px;
+  --chart-h: 320px;
+  --chart-h-basket: 360px;
   font-family:
     'PingFang SC',
     'Hiragino Sans GB',
@@ -46,6 +51,33 @@ body {
     radial-gradient(1200px 600px at 10% -10%, #e8eef8 0%, transparent 55%),
     radial-gradient(900px 500px at 100% 0%, #f7efe6 0%, transparent 50%),
     var(--page-bg);
+}
+
+@media (min-width: 1100px) {
+  :root {
+    --board-max-width: min(1360px, calc(100vw - 2 * var(--board-gutter-x)));
+    --board-gutter-x: 20px;
+    --chart-h: 380px;
+    --chart-h-basket: 400px;
+  }
+}
+
+@media (min-width: 1440px) {
+  :root {
+    --board-max-width: min(1600px, calc(100vw - 2 * var(--board-gutter-x)));
+    --board-gutter-x: 24px;
+    --chart-h: 400px;
+    --chart-h-basket: 420px;
+  }
+}
+
+@media (min-width: 1800px) {
+  :root {
+    --board-max-width: min(1760px, calc(100vw - 2 * var(--board-gutter-x)));
+    --board-gutter-x: 28px;
+    --chart-h: 420px;
+    --chart-h-basket: 440px;
+  }
 }
 
 /* 触控设备：减少点击延迟感，保留双击缩放由浏览器处理 */

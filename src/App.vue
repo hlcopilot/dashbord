@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BackToTop from '@/components/BackToTop.vue'
 import EtfFlowSection from '@/components/EtfFlowSection.vue'
 import MarginBalanceCard from '@/components/MarginBalanceCard.vue'
 import TurnoverPercentileCard from '@/components/TurnoverPercentileCard.vue'
@@ -19,6 +20,8 @@ import TurnoverPercentileCard from '@/components/TurnoverPercentileCard.vue'
       <MarginBalanceCard />
       <EtfFlowSection />
     </main>
+
+    <BackToTop />
   </div>
 </template>
 
@@ -26,16 +29,17 @@ import TurnoverPercentileCard from '@/components/TurnoverPercentileCard.vue'
 .page {
   min-height: 100vh;
   min-height: 100dvh;
-  padding: 40px 24px 64px;
-  padding-top: max(40px, env(safe-area-inset-top, 0px));
-  padding-right: max(24px, env(safe-area-inset-right, 0px));
-  padding-bottom: max(64px, env(safe-area-inset-bottom, 0px));
-  padding-left: max(24px, env(safe-area-inset-left, 0px));
+  padding: 28px var(--board-gutter-x) 56px;
+  padding-top: max(28px, env(safe-area-inset-top, 0px));
+  padding-right: max(var(--board-gutter-x), env(safe-area-inset-right, 0px));
+  padding-bottom: max(56px, env(safe-area-inset-bottom, 0px));
+  padding-left: max(var(--board-gutter-x), env(safe-area-inset-left, 0px));
 }
 
 .page-header {
-  width: min(860px, 100%);
-  margin: 0 auto 24px;
+  width: var(--board-max-width);
+  max-width: 100%;
+  margin: 0 auto 20px;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
@@ -59,23 +63,30 @@ import TurnoverPercentileCard from '@/components/TurnoverPercentileCard.vue'
 
 .subtitle {
   margin: 0;
+  flex-shrink: 0;
   color: #8a919f;
   font-size: 13px;
   line-height: 1.5;
-  max-width: 240px;
+  white-space: nowrap;
   text-align: right;
 }
 
 .page-main {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 20px;
-  width: 100%;
+  align-items: stretch;
+  gap: 18px;
+  width: var(--board-max-width);
+  max-width: 100%;
+  margin: 0 auto;
 }
 
 @media (max-width: 640px) {
   .page {
+    --board-max-width: 100%;
+    --board-gutter-x: 12px;
+    --chart-h: 260px;
+    --chart-h-basket: 280px;
     padding: 20px 12px 40px;
     padding-top: max(20px, env(safe-area-inset-top, 0px));
     padding-right: max(12px, env(safe-area-inset-right, 0px));
@@ -95,7 +106,7 @@ import TurnoverPercentileCard from '@/components/TurnoverPercentileCard.vue'
   }
 
   .subtitle {
-    max-width: none;
+    white-space: normal;
     text-align: left;
     font-size: 12px;
   }

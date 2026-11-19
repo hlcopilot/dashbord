@@ -515,7 +515,8 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .etf-card-root {
-  width: min(860px, 100%);
+  width: 100%;
+  min-width: 0;
 }
 
 .etf-card {
@@ -701,7 +702,7 @@ onBeforeUnmount(() => {
 }
 
 .chart-wrap {
-  height: 340px;
+  height: var(--chart-h);
   -webkit-touch-callout: none;
   user-select: none;
 }

@@ -1,0 +1,27 @@
+---
+description: dashbord 用户要求提交/推送时必须遵守的流程与变更摘要
+globs: "**/*"
+alwaysApply: true
+---
+
+# dashbord 提交与推送（必须遵守）
+
+完整说明见 `docs/GIT-COMMIT-PUSH.md`。用户明确要求「提交并推送 / commit & push」时 **自动执行**；未要求则禁止擅自 commit / push。
+
+## 硬性流程
+
+1. 在 `dashbord` 根目录并行：`git status`、`git diff`（含 staged）、`git log` 文风、分支跟踪状态。
+2. 只 stage 本次相关文件；不提交密钥；有意积累的 `data/**` 可随功能提交。
+3. Commit message：中文、偏「为什么」，对齐近期 `feat:` / `fix:`；**PowerShell 用 here-string**，禁止 bash heredoc。
+4. 需要推送时：`git push -u origin HEAD`，再用 `git status` 确认已与远程同步。
+5. 安全：不改 `git config`；不 force push main/master；不 amend 已推送提交；hook 失败则修后 **新 commit**。
+
+## 回复摘要（每次必做）
+
+完成提交/推送后，回复必须包含：
+
+1. **Commit**：短 hash + 标题 + 目标分支（如 `origin/master`）
+2. **主要功能点**：3～6 条，总结 **本次代码变更** 的用户可感知能力（勿只列文件名）
+3. 可选：是否含缓存回写、是否需要云端 deploy
+
+未写清「主要功能点」视为未完成该请求。

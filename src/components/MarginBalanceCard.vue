@@ -485,7 +485,7 @@ onMounted(() => {
 .margin-card {
   --el-card-border-color: transparent;
   --el-card-padding: 20px 22px 16px;
-  width: min(860px, 100%);
+  width: 100%;
   border-radius: 16px;
   box-shadow: 0 8px 28px rgba(31, 35, 41, 0.06);
 }
@@ -643,7 +643,7 @@ onMounted(() => {
 }
 
 .chart-wrap {
-  height: 320px;
+  height: var(--chart-h);
 }
 
 .chart {
