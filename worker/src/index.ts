@@ -59,6 +59,13 @@ const PROXY_RULES: ProxyRule[] = [
     strip: '/api/emdc',
     headers: { Referer: 'https://data.eastmoney.com/rzrq/', 'User-Agent': UA },
   },
+  // em-push2 必须在 eastmoney 之前（trends2）
+  {
+    prefix: '/api/em-push2',
+    origin: 'https://push2.eastmoney.com',
+    strip: '/api/em-push2',
+    headers: { Referer: 'https://quote.eastmoney.com/', 'User-Agent': UA },
+  },
   {
     prefix: '/api/eastmoney',
     origin: 'https://push2his.eastmoney.com',

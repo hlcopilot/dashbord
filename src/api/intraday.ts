@@ -26,7 +26,8 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-async function fetchEmTrends(secid: EmSecid, retries = 2): Promise<string[]> {
+async function fetchEmTrends(secid: EmSecid, retries = 3): Promise<string[]> {
+  // 本机 Vite 由 em-curl-proxy 转发 push2his，避免 http-proxy socket hang up
   const url = apiUrl(
     `/api/eastmoney/api/qt/stock/trends2/get` +
       `?fields1=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13` +
@@ -46,7 +47,7 @@ async function fetchEmTrends(secid: EmSecid, retries = 2): Promise<string[]> {
       return trends
     } catch (e) {
       lastError = e
-      if (i < retries) await sleep(300 * (i + 1))
+      if (i < retries) await sleep(400 * (i + 1))
     }
   }
   throw lastError instanceof Error ? lastError : new Error(String(lastError))

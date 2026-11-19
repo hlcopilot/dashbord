@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import EtfBasketCumulativeCard from '@/components/EtfBasketCumulativeCard.vue'
 import EtfNetFlowCard from '@/components/EtfNetFlowCard.vue'
 import {
   ETF_UNIVERSE,
@@ -30,14 +31,14 @@ const etfs = computed(() => listEtfsByIndex(indexFilter.value))
       <div>
         <h2 class="section-title">20 只宽基 ETF 净流入</h2>
         <p class="section-desc">
-          与常见监测篮子对齐：柱为申赎净流入、线为总份额；每张图与筛选标注所属指数及大致定位。进入视口后加载，并发受限。
+          顶部为篮子区间累计（悬停看 9 个指数分解）；下方单卡为申赎柱 + 份额线。进入视口后加载，并发受限。
         </p>
       </div>
       <el-select
         v-model="indexFilter"
         size="small"
         class="index-filter"
-        placeholder="按指数筛选"
+        placeholder="按指数筛选单卡"
         fit-input-width
       >
         <el-option
@@ -48,6 +49,8 @@ const etfs = computed(() => listEtfsByIndex(indexFilter.value))
         />
       </el-select>
     </header>
+
+    <EtfBasketCumulativeCard />
 
     <div class="etf-list">
       <EtfNetFlowCard

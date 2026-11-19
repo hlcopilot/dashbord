@@ -30,6 +30,7 @@ export type LocalEtfIntradayDay = {
   amountYi: number
 }
 
+/** trends2 用 push2his（近约 5 日）；本机 Vite 经 curl 插件转发，避免 Node 代理 hang up */
 export function emTrends2Url(secid: string): string {
   return (
     `https://push2his.eastmoney.com/api/qt/stock/trends2/get` +

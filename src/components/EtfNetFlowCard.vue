@@ -299,7 +299,6 @@ function reload() {
 }
 
 onMounted(() => {
-  if (props.showGuide) guideOpen.value = true
   const el = rootRef.value
   if (!el || typeof IntersectionObserver === 'undefined') {
     void load()

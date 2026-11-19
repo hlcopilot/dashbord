@@ -1,12 +1,20 @@
 import { fileURLToPath, URL } from 'node:url'
 import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vite'
+import { emCurlProxyPlugin } from './vite-plugin-em-curl-proxy.ts'
 import { etfFlowPlugin } from './vite-plugin-etf-flow.ts'
 import { localArchivePlugin } from './vite-plugin-local-archive.ts'
 import { marketSeriesPlugin } from './vite-plugin-market-series.ts'
 
 export default defineConfig({
-  plugins: [vue(), localArchivePlugin(), etfFlowPlugin(), marketSeriesPlugin()],
+  // emCurlProxy 须靠前：先于内置 http-proxy 接管东财，避免 socket hang up
+  plugins: [
+    vue(),
+    emCurlProxyPlugin(),
+    localArchivePlugin(),
+    etfFlowPlugin(),
+    marketSeriesPlugin(),
+  ],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
@@ -47,10 +55,27 @@ export default defineConfig({
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         },
       },
-      // 东方财富分时（近约 5 个交易日）
+      // 东财分时 trends2：走 push2（push2his 在本机 Node 代理上常 socket hang up）
+      '/api/em-push2': {
+        target: 'https://push2.eastmoney.com',
+        changeOrigin: true,
+        secure: true,
+        timeout: 60_000,
+        proxyTimeout: 60_000,
+        rewrite: (path) => path.replace(/^\/api\/em-push2/, ''),
+        headers: {
+          Referer: 'https://quote.eastmoney.com/',
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+      },
+      // 东财历史 K 等：push2his
       '/api/eastmoney': {
         target: 'https://push2his.eastmoney.com',
         changeOrigin: true,
+        secure: true,
+        timeout: 60_000,
+        proxyTimeout: 60_000,
         rewrite: (path) => path.replace(/^\/api\/eastmoney/, ''),
         headers: {
           Referer: 'https://quote.eastmoney.com/',
