@@ -19,7 +19,8 @@ Vue 3 + Vite + TypeScript + Element Plus + ECharts 的投资看板前端。打�
 ```bash
 npm install
 npm run series:seed   # 可选：成交额+两融本地全量缓存（首次建议）
-npm run etf:seed      # 可选：ETF 份额全量
+npm run etf:seed             # 可选：ETF 份额全量
+npm run etf:intraday:seed    # 可选：20 只 ETF 近约 5 日分钟 K
 npm run dev
 ```
 
@@ -48,7 +49,7 @@ npm run deploy:cf             # Pages + Worker
 - **当日分时**：桌面右键或手机长按某日 → 今日/前一日累计成交额对比 + 增减柱状（H5 为底部操作条）
 - **两融余额卡片**：两融余额（左轴）+ 上证指数（右轴），同样支持区间/缩放/高低点/均值
 - **ETF 净流入**：20 只宽基篮子，按「份额变动 × 收盘价」估算日净申赎；份额/收盘价优先本地缓存，日常只补增量。首次全量：`npm run etf:seed`
-- **ETF 当日分钟 K**：右键/长按交易日 → 当日 OHLC + 成交量/额（非净流入；近 5 日同步写入 `data/etf-intraday`，云端 `cf:etf-intraday:seed`）
+- **ETF 当日分钟 K**：20 只卡通用；右键/长按 → 当日 OHLC + 量/额（非净流入）。日常打开弹层增量同步；全篮子冷启动：`etf:intraday:seed`，云端 `cf:etf-intraday:seed`
 - **H5 适配**：窄屏弱化图内拖移、区间 tab 可横滑、弹层全宽；详见 `docs/H5-MOBILE.md`
 - **本地积累**：分时写入 `data/intraday/`；成交额/两融写入 `data/series/`（与 ETF 同一套缓存优先策略）
 

@@ -103,19 +103,11 @@ export interface EtfFlowSeriesResult {
   note: string
 }
 
-/** ETF 当日（或近几日）1 分钟 K */
-export interface EtfIntradayBar {
-  /** HH:mm */
-  time: string
-  open: number
-  close: number
-  high: number
-  low: number
-  /** 成交量（股） */
-  volume: number
-  /** 成交额（亿元） */
-  amountYi: number
-}
+/** ETF 分钟 K 类型与解析见根目录 etf-intraday-core（前后端/seed 共用） */
+export type {
+  EtfIntradayBar,
+  LocalEtfIntradayDay,
+} from '../../etf-intraday-core.ts'
 
 export interface EtfIntradayResult {
   code: string
@@ -123,23 +115,7 @@ export interface EtfIntradayResult {
   date: string
   /** kline / trends2 来自远端；cache 表示仅命中本地/KV 归档 */
   source: 'kline' | 'trends2' | 'cache'
-  bars: EtfIntradayBar[]
-  open: number
-  close: number
-  high: number
-  low: number
-  volume: number
-  amountYi: number
-}
-
-/** 本地 / KV 归档的单日 ETF 分钟 K（data/etf-intraday/{code}/YYYY-MM-DD.json） */
-export interface LocalEtfIntradayDay {
-  date: string
-  code: string
-  name?: string
-  updatedAt: string
-  source: 'kline' | 'trends2'
-  bars: EtfIntradayBar[]
+  bars: import('../../etf-intraday-core.ts').EtfIntradayBar[]
   open: number
   close: number
   high: number

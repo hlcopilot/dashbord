@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
+import { computed, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { LineChart } from 'echarts/charts'
@@ -16,6 +16,7 @@ import VChart from 'vue-echarts'
 import { ArrowDown, ArrowUp, Refresh, RefreshRight } from '@element-plus/icons-vue'
 import { fetchHsTurnoverSeries, sliceByRange } from '@/api/market'
 import type { DailyTurnover, RangeKey, TurnoverSeriesResult } from '@/types/market'
+import { useChartDayMenu } from '@/composables/useChartDayMenu'
 import { useNarrowScreen } from '@/composables/useNarrowScreen'
 import {
   buildTimeAxisDataZoom,
@@ -64,28 +65,26 @@ const zoomStart = ref(0)
 const zoomEnd = ref(100)
 const chartRef = useTemplateRef<InstanceType<typeof VChart>>('chartRef')
 const hoverIndex = ref(-1)
-
-const ctxMenu = ref({
-  visible: false,
-  x: 0,
-  y: 0,
-  date: '',
-  /** 窄屏长按用底部操作条，避免跟手指坐标错位 */
-  sheet: false,
-})
 const intradayOpen = ref(false)
 const intradayDate = ref('')
-
-/** 长按后短暂忽略 window click，避免菜单立刻被关掉 */
-let suppressCtxCloseUntil = 0
-let longPressTimer: ReturnType<typeof setTimeout> | null = null
-let longPressStart = { x: 0, y: 0 }
-const LONG_PRESS_MS = 480
-const LONG_PRESS_MOVE_PX = 12
 
 const rangedSeries = computed(() =>
   result.value ? sliceByRange(result.value.series, range.value) : [],
 )
+
+const {
+  ctxMenu,
+  hideMenu,
+  onChartContextMenu,
+  onChartTouchStart,
+  onChartTouchMove,
+  onChartTouchEnd,
+} = useChartDayMenu({
+  narrow,
+  rangedSeries,
+  chartRef,
+  hoverIndex,
+})
 
 const isZoomed = computed(
   () => zoomStart.value > 0.05 || zoomEnd.value < 99.95,
@@ -127,116 +126,11 @@ function onAxisPointer(params: {
   if (typeof idx === 'number') hoverIndex.value = idx
 }
 
-function closeCtxMenu() {
-  if (Date.now() < suppressCtxCloseUntil) return
-  ctxMenu.value.visible = false
-}
-
-function clearLongPressTimer() {
-  if (longPressTimer != null) {
-    clearTimeout(longPressTimer)
-    longPressTimer = null
-  }
-}
-
-type ChartPixelApi = {
-  containPixel?: (finder: string, value: number[]) => boolean
-  convertFromPixel?: (finder: object, value: number[]) => number[]
-  getDom?: () => HTMLElement
-}
-
-function resolveDateAtClientPoint(clientX: number, clientY: number): string | null {
-  const list = rangedSeries.value
-  if (!list.length) return null
-
-  let idx = hoverIndex.value
-  const chart = chartRef.value as unknown as ChartPixelApi | null
-  const dom = chart?.getDom?.()
-  if (chart?.containPixel && chart.convertFromPixel && dom) {
-    const rect = dom.getBoundingClientRect()
-    const point = [clientX - rect.left, clientY - rect.top]
-    if (chart.containPixel('grid', point)) {
-      const data = chart.convertFromPixel({ seriesIndex: 0 }, point)
-      if (typeof data?.[0] === 'number') idx = Math.round(data[0])
-    }
-  }
-
-  if (idx < 0 || idx >= list.length) idx = list.length - 1
-  return list[idx]?.date ?? null
-}
-
-function openCtxMenuAt(clientX: number, clientY: number, asSheet: boolean) {
-  const date = resolveDateAtClientPoint(clientX, clientY)
-  if (!date) return
-
-  const pad = 8
-  const menuW = asSheet ? Math.min(320, window.innerWidth - 24) : 168
-  const menuH = 44
-  let x = clientX
-  let y = clientY
-  if (asSheet) {
-    x = Math.max(pad, (window.innerWidth - menuW) / 2)
-    y = Math.max(pad, window.innerHeight - menuH - 24 - (window.visualViewport?.offsetTop ?? 0))
-  } else {
-    x = Math.min(Math.max(pad, clientX), window.innerWidth - menuW - pad)
-    y = Math.min(Math.max(pad, clientY), window.innerHeight - menuH - pad)
-  }
-
-  suppressCtxCloseUntil = Date.now() + 400
-  ctxMenu.value = {
-    visible: true,
-    x,
-    y,
-    date,
-    sheet: asSheet,
-  }
-}
-
-function onChartContextMenu(e: MouseEvent) {
-  e.preventDefault()
-  // 触控长按也会冒泡 contextmenu；统一走底部条，避免桌面菜单坐标错位
-  openCtxMenuAt(e.clientX, e.clientY, narrow.value)
-}
-
-function onChartTouchStart(e: TouchEvent) {
-  if (!narrow.value) return
-  const t = e.touches[0]
-  if (!t) return
-  longPressStart = { x: t.clientX, y: t.clientY }
-  clearLongPressTimer()
-  longPressTimer = setTimeout(() => {
-    longPressTimer = null
-    openCtxMenuAt(longPressStart.x, longPressStart.y, true)
-    try {
-      navigator.vibrate?.(10)
-    } catch {
-      /* ignore */
-    }
-  }, LONG_PRESS_MS)
-}
-
-function onChartTouchMove(e: TouchEvent) {
-  if (longPressTimer == null) return
-  const t = e.touches[0]
-  if (!t) return
-  if (
-    Math.abs(t.clientX - longPressStart.x) > LONG_PRESS_MOVE_PX ||
-    Math.abs(t.clientY - longPressStart.y) > LONG_PRESS_MOVE_PX
-  ) {
-    clearLongPressTimer()
-  }
-}
-
-function onChartTouchEnd() {
-  clearLongPressTimer()
-}
-
 function openIntraday() {
   if (!ctxMenu.value.date) return
   intradayDate.value = ctxMenu.value.date
   intradayOpen.value = true
-  suppressCtxCloseUntil = 0
-  ctxMenu.value.visible = false
+  hideMenu()
 }
 
 function buildTooltipHtml(dataIndex: number): string {
@@ -546,16 +440,6 @@ function reload() {
 
 onMounted(() => {
   void load()
-  window.addEventListener('click', closeCtxMenu)
-  window.addEventListener('scroll', closeCtxMenu, true)
-  window.addEventListener('touchstart', closeCtxMenu, { passive: true })
-})
-
-onBeforeUnmount(() => {
-  clearLongPressTimer()
-  window.removeEventListener('click', closeCtxMenu)
-  window.removeEventListener('scroll', closeCtxMenu, true)
-  window.removeEventListener('touchstart', closeCtxMenu)
 })
 </script>
 

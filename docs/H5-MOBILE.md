@@ -52,7 +52,7 @@ Agent 约束见仓库 `.cursor/rules/h5-mobile.mdc`（与本文同步维护）�
 | 缩放 | 滚轮 / 拖移 / 框选 / 滑条 | 底部滑条 + 快捷区间 |
 | 提示文案 | 写「右键…」 | 窄屏改为「长按…」 |
 
-实现参考：`TurnoverPercentileCard.vue` / `EtfNetFlowCard.vue`（长按计时、`ctx-menu--sheet`）、`src/styles/global.css`。
+实现参考：共用 `useChartDayMenu`（`TurnoverPercentileCard` / `EtfNetFlowCard`）、`src/styles/global.css`。
 
 **规则**：凡是桌面用右键 / hover / 滚轮才能触发的能力，上线前必须有触控等价路径。
 

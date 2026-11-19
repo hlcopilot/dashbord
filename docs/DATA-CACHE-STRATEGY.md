@@ -58,8 +58,9 @@
 - 最新交易日优先 `klt=1` 覆盖；其余近日用 `trends2`。
 - 本地：`data/etf-intraday/{code}/YYYY-MM-DD.json`；云端 KV：`etfintra:{code}:{date}`。
 - API：`GET/PUT /api/local/etf-intraday/{code}/...`（Vite 插件与 Worker 对齐）。
-- 云端导入：`npm run cf:etf-intraday:seed`（仓库/本地已积累后）。
-- 入口：`EtfNetFlowCard`；实现：`src/api/etfIntraday.ts` + `EtfIntradayDialog.vue`。
+- 解析/建日共用：`etf-intraday-core.ts`（前端 sync 与 `etf:intraday:seed`）。
+- 本地全篮子近 5 日回填：`npm run etf:intraday:seed`（可加 code）；云端：`npm run cf:etf-intraday:seed`。
+- 入口：每张 `EtfNetFlowCard`（按 props.code，非仅 510300）；右键/长按菜单复用 `useChartDayMenu`。
 
 ## 部署注意
 
@@ -75,6 +76,7 @@
 npm run series:seed      # 成交额 + 两融本地全量/补齐
 npm run etf:seed         # 20 只宽基份额+收盘价全量/补齐（可加 code 参数单只）
 npm run cf:kv:seed            # 成交额分时 JSON 导入 KV（可选）
+npm run etf:intraday:seed     # 20 只近约 5 日分钟 K → data/etf-intraday（可加 code）
 npm run cf:etf-intraday:seed  # ETF 分钟 K 归档导入 KV（可选，本地积累后）
 npm run cf:series:seed        # 成交额/两融/全部 etf-share/*.json 导入 KV（云端必做）
 npm run deploy:cf             # Pages + Worker
