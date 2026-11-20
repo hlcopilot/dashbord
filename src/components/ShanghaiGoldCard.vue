@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, useTemplateRef, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { LineChart } from 'echarts/charts'
@@ -57,7 +57,6 @@ const guideOpen = ref(false)
 const zoomStart = ref(0)
 const zoomEnd = ref(100)
 const chartEpoch = ref(0)
-const chartRef = useTemplateRef<InstanceType<typeof VChart>>('chartRef')
 
 const rangedSeries = computed(() => {
   if (!result.value) return []
@@ -369,7 +368,6 @@ onMounted(() => {
 
       <div class="chart-wrap">
         <v-chart
-          ref="chartRef"
           :key="chartInstanceKey"
           class="chart"
           :option="chartOption"
