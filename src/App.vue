@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import BackToTop from '@/components/BackToTop.vue'
 import EtfFlowSection from '@/components/EtfFlowSection.vue'
+import GoldSection from '@/components/GoldSection.vue'
 import MarginBalanceCard from '@/components/MarginBalanceCard.vue'
 import TurnoverPercentileCard from '@/components/TurnoverPercentileCard.vue'
 </script>
@@ -18,6 +19,7 @@ import TurnoverPercentileCard from '@/components/TurnoverPercentileCard.vue'
     <main class="page-main">
       <TurnoverPercentileCard />
       <MarginBalanceCard />
+      <GoldSection />
       <EtfFlowSection />
     </main>
 

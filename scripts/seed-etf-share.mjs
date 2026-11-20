@@ -26,17 +26,25 @@ const CURL = process.platform === 'win32' ? 'curl.exe' : 'curl'
 const SZSE_HISTORY_YEARS = 10
 
 const universe = JSON.parse(await readFile(path.join(root, 'etf-universe.json'), 'utf8'))
+const GOLD_EXTRA = {
+  code: '518880',
+  name: '黄金ETF华安',
+  indexName: '黄金9999',
+  exchange: 'SH',
+  secid: '1.518880',
+}
 
 const argCode = process.argv[2]
 const targets = argCode
   ? [
-      universe.find((e) => e.code === argCode) || {
-        code: argCode,
-        name: argCode,
-        indexName: '未分类',
-        exchange: argCode.startsWith('15') ? 'SZ' : 'SH',
-        secid: `${argCode.startsWith('15') ? '0' : '1'}.${argCode}`,
-      },
+      universe.find((e) => e.code === argCode) ||
+        (argCode === GOLD_EXTRA.code ? GOLD_EXTRA : null) || {
+          code: argCode,
+          name: argCode,
+          indexName: '未分类',
+          exchange: argCode.startsWith('15') ? 'SZ' : 'SH',
+          secid: `${argCode.startsWith('15') ? '0' : '1'}.${argCode}`,
+        },
     ]
   : universe
 
@@ -337,15 +345,27 @@ async function seedOne(meta) {
   console.log(`\n=== seeding ${code} ${meta.name} [${meta.indexName}/${meta.exchange}] ===`)
 
   const cache = await loadCache(cachePath)
-  const klines = await fetchKlines(meta.secid)
-  if (!klines.length) throw new Error(`${code}: no klines`)
-  console.log(`klines: ${klines.length} (${klines[0].date} → ${klines[klines.length - 1].date})`)
+  let klines = []
+  try {
+    klines = await fetchKlines(meta.secid)
+  } catch (e) {
+    console.warn(
+      `kline upstream failed, fallback to cached closes: ${e instanceof Error ? e.message : e}`,
+    )
+  }
+  if (klines.length) {
+    console.log(`klines: ${klines.length} (${klines[0].date} → ${klines[klines.length - 1].date})`)
+    for (const row of klines) cache.closes[row.date] = row.close
+  } else if (!Object.keys(cache.closes).length) {
+    throw new Error(`${code}: no klines and no cached closes`)
+  } else {
+    console.log(`using cached closes: ${Object.keys(cache.closes).length}`)
+  }
 
-  for (const row of klines) cache.closes[row.date] = row.close
-
-  const missing = klines
-    .map((k) => k.date)
-    .filter((d) => !(typeof cache.shares[d] === 'number' && Number.isFinite(cache.shares[d])))
+  const closeDates = Object.keys(cache.closes).sort()
+  const missing = closeDates.filter(
+    (d) => !(typeof cache.shares[d] === 'number' && Number.isFinite(cache.shares[d])),
+  )
 
   console.log(`shares cached: ${Object.keys(cache.shares).length}, missing: ${missing.length}`)
 

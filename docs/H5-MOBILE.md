@@ -26,7 +26,7 @@ Agent 约束见仓库 `.cursor/rules/h5-mobile.mdc`（与本文同步维护）�
 - 页面：`App.vue` 边距含 `env(safe-area-inset-*)`；`index.html` viewport 含 `viewport-fit=cover`。
 - 布局：PC 用 `--board-max-width`（约 1120～1760，随屏变宽）吃满横向空间；卡片 `width: 100%`。ETF 单卡在 ≥1100px 双列（窄屏仍单列）。窄屏减小 padding、标题字号、图高（约 260px 量级）。
 - **回顶部**：`BackToTop` 固定右下（含 safe-area），下滚超过约一屏后出现；桌面 / H5 共用。
-- **区间 segmented（成交 / 两融 / ETF 必须一致）**
+- **区间 segmented（成交 / 两融 / 黄金 / ETF 必须一致）**
   - 外层 `.range-scroll`：`flex: 1; min-width: 0; overflow-x: auto`
   - `.el-segmented`：窄屏 `width/min-width: max-content`
   - `.el-segmented__item`：`flex: 0 0 auto`，避免「全部」被裁成「全」
@@ -84,5 +84,6 @@ Agent 约束见仓库 `.cursor/rules/h5-mobile.mdc`（与本文同步维护）�
 | 统一缩放 | `src/utils/chartTimeZoom.ts` |
 | 分时入口 + 长按 | `src/components/TurnoverPercentileCard.vue` |
 | 分时弹层 | `src/components/IntradayTurnoverDialog.vue` |
+| 黄金观察 | `src/components/GoldSection.vue` / `ShanghaiGoldCard.vue` / `LondonGoldCard.vue` / `GoldPriceCard.vue` |
 | 全局菜单 / sheet | `src/styles/global.css`（`.ctx-menu` / `--sheet`） |
 | Agent 规则 | `.cursor/rules/h5-mobile.mdc` |

@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-19T01:35:22.431Z",
+  "updatedAt": "2026-11-20T05:05:49.399Z",
   "days": {
     "2026-11-10": {
       "marginYi": 22945.61,
@@ -24240,6 +24240,12 @@
       "financingYi": 22082.62,
       "securitiesYi": 295.68,
       "sseClose": 3587.83
+    },
+    "2026-11-19": {
+      "marginYi": 22222.85,
+      "financingYi": 21927.43,
+      "securitiesYi": 295.42,
+      "sseClose": 3577.62
     }
   }
 }

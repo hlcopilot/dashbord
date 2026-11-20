@@ -18,7 +18,8 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | 成交额主图 | `GET /api/turnover/series` | `data/series/turnover.json` | `series:turnover` | 搜狐 `hisHq` 上证+深成 | `start/end` 从近端重叠日起 | 前端读 API → 可选补今日虚线点 → `sliceByRange` |
 | 两融主图 | `GET /api/margin/series` | `data/series/margin.json` | `series:margin` | 东财 `RPTA_RZRQ_LSHJ` + 搜狐上证 | 倒序分页至缓存重叠早停；上证按日期窗口 | 前端读 API → `sliceMarginByRange` |
-| ETF 净流入（20 只宽基） | `GET /api/etf/flow?code=` | `data/etf-share/{code}.json` | `etfcache:{code}` | 沪：上交所份额；深：深交所 `scsj_fund_jjgm`；东财日 K | 缺日份额 + 近端 T+1 重试；K 线对齐 closes | `EtfFlowSection` 按需请求 → `sliceEtfFlowByRange` |
+| 黄金观察 | `GET /api/gold/series` | `data/series/gold.json` | `series:gold` | 东财日 K：`1.518880` + `118.SHAU` + `118.AU9999` + `122.XAU` + `100.UDI` | 近端约 5 日窗口重拉合并 | `ShanghaiGoldCard` / `LondonGoldCard` / `GoldPriceCard` → `sliceGoldByRange` |
+| ETF 净流入（20 只宽基 + 黄金 518880） | `GET /api/etf/flow?code=` | `data/etf-share/{code}.json` | `etfcache:{code}` | 沪：上交所份额；深：深交所 `scsj_fund_jjgm`；东财日 K | 缺日份额 + 近端 T+1 重试；K 线对齐 closes | 宽基 `EtfFlowSection`；黄金区单独挂 `518880`（不进 20 篮筛选） |
 | ETF 当日分钟 K | `/api/local/etf-intraday/{code}*` + 东财代理 | `data/etf-intraday/{code}/*.json` | `etfintra:{code}:{date}` | 东财 1 分钟 K（最新日）+ trends2（近约 5 日） | 打开弹层同步近 5 日写回，更早靠归档积累 | 右键/长按日 → `EtfIntradayDialog` |
 | 成交额分时 | `/api/local/intraday*` | `data/intraday/*.json` | `day:YYYY-MM-DD` | 东财 trends2 近约 5 日 | 远端近 5 日覆盖写回，更早保留本地 | `syncIntradayArchive` 合并后再画 |
 
@@ -35,6 +36,15 @@
 - **增量**：东财按 `DIM_DATE` 倒序翻页，一旦日期早于「缓存尾部重叠窗口」即停；上证收盘用搜狐 `start/end` 增量填 `sseClose`。
 - **画图**：`fetchMarginSeries` → 服务端全序列 → 百分位 / 增减 → `sliceMarginByRange`。
 - **Seed**：`npm run series:seed`。
+
+## 黄金观察
+
+- **缓存字段**：`days[date].{ goldClose, shauClose, au9999Close, xauClose, usdIndex }`（`gold-series-core.ts`）。
+- **上游**：`1.518880`（ETF）、`118.SHAU` / `118.AU9999`（元/克）、`122.XAU`（伦敦金，美元/盎司）、`100.UDI`（美元指数）。
+- **增量**：各序列近约 5 日窗口重拉；ETF `20130718`，上海金 `20160419`，Au9999/XAU `20100104`。XAU 只写入已有国内交易日。
+- **净流入**：复用 `/api/etf/flow?code=518880`；元数据在 `gold-etf.ts` / `getEtfByCode` EXTRA，**不并入** 20 只宽基 `ETF_UNIVERSE`。
+- **画图**：`GoldSection`（上海金卡 + ETF 价卡 + 净流入卡）→ `fetchGoldSeries` / `fetchEtfFlowSeries`。
+- **Seed**：`npm run series:seed`（含 gold.json）；份额 `npm run etf:seed -- 518880`；云端 `cf:series:seed` 含 `series:gold`。
 
 ## ETF 净流入
 
@@ -73,8 +83,8 @@
 ## 相关命令
 
 ```bash
-npm run series:seed      # 成交额 + 两融本地全量/补齐
-npm run etf:seed         # 20 只宽基份额+收盘价全量/补齐（可加 code 参数单只）
+npm run series:seed      # 成交额 + 两融 + 黄金本地全量/补齐
+npm run etf:seed         # 20 只宽基份额+收盘价全量/补齐（可加 code；黄金用 518880）
 npm run cf:kv:seed            # 成交额分时 JSON 导入 KV（可选）
 npm run etf:intraday:seed     # 20 只近约 5 日分钟 K → data/etf-intraday（可加 code）
 npm run cf:etf-intraday:seed  # ETF 分钟 K 归档导入 KV（可选，本地积累后）

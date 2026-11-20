@@ -4,6 +4,7 @@
  * - 成交额分时归档（KV day:，对应 data/intraday）
  * - ETF 分钟 K 归档（KV etfintra:，对应 data/etf-intraday）
  * - ETF 申赎净流入（沪/深交易所份额 + 东财日 K）
+ * - 黄金观察日频（518880 + 美元指数 UDI）
  */
 
 import {
@@ -15,6 +16,10 @@ import {
 } from '../../etf-flow-core'
 import { fetchEtfShareWan } from '../../etf-share-fetch'
 import { getEtfByCode } from '../../etf-universe'
+import {
+  buildGoldSeries,
+  normalizeGoldCache,
+} from '../../gold-series-core'
 import {
   buildMarginSeries,
   normalizeMarginCache,
@@ -481,6 +486,60 @@ async function handleMarginSeries(env: Env): Promise<Response> {
   }
 }
 
+async function fetchEmCloseMap(secid: string, beg: string, end: string): Promise<Map<string, number>> {
+  const url =
+    `https://push2his.eastmoney.com/api/qt/stock/kline/get` +
+    `?secid=${encodeURIComponent(secid)}` +
+    `&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57` +
+    `&klt=101&fqt=1&beg=${beg}&end=${end}&lmt=100000`
+  let lastError: unknown
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      const res = await fetch(url, {
+        headers: { Referer: 'https://quote.eastmoney.com/', 'User-Agent': UA },
+      })
+      if (!res.ok) throw new Error(`em kline ${secid}: ${res.status}`)
+      const body = (await res.json()) as { data?: { klines?: string[] } }
+      const klines = body.data?.klines ?? []
+      if (!klines.length) throw new Error(`em kline ${secid}: empty`)
+      const map = new Map<string, number>()
+      for (const row of klines) {
+        const parts = row.split(',')
+        const date = parts[0]
+        const close = Number(parts[2])
+        if (date && Number.isFinite(close)) map.set(date, close)
+      }
+      return map
+    } catch (e) {
+      lastError = e
+      await new Promise((r) => setTimeout(r, 400 * (attempt + 1)))
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error(String(lastError))
+}
+
+async function handleGoldSeries(env: Env): Promise<Response> {
+  const kv = env.INTRADAY_KV
+  const key = 'series:gold'
+  try {
+    const result = await buildGoldSeries({
+      fetchCloseMap: fetchEmCloseMap,
+      async loadCache() {
+        if (!kv) return normalizeGoldCache(null)
+        const raw = await kv.get(key)
+        return normalizeGoldCache(raw ? JSON.parse(raw) : null)
+      },
+      async saveCache(cache) {
+        if (!kv) return
+        await kv.put(key, JSON.stringify(cache))
+      },
+    })
+    return json(result)
+  } catch (e) {
+    return json({ message: e instanceof Error ? e.message : String(e) }, 502)
+  }
+}
+
 async function handleApi(request: Request, env: Env): Promise<Response> {
   const pathname = new URL(request.url).pathname
 
@@ -508,6 +567,11 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
   if (pathname === '/api/margin/series') {
     if (request.method !== 'GET') return json({ message: 'method not allowed' }, 405)
     return handleMarginSeries(env)
+  }
+
+  if (pathname === '/api/gold/series') {
+    if (request.method !== 'GET') return json({ message: 'method not allowed' }, 405)
+    return handleGoldSeries(env)
   }
 
   const rule = PROXY_RULES.find((r) => pathname === r.prefix || pathname.startsWith(`${r.prefix}/`))

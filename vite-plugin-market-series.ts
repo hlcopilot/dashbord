@@ -1,6 +1,16 @@
+import { execFile } from 'node:child_process'
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import { promisify } from 'node:util'
 import type { Connect, Plugin, PreviewServer, ViteDevServer } from 'vite'
+
+const execFileAsync = promisify(execFile)
+const CURL = process.platform === 'win32' ? 'curl.exe' : 'curl'
+import {
+  buildGoldSeries,
+  normalizeGoldCache,
+  type GoldCache,
+} from './gold-series-core.ts'
 import {
   buildMarginSeries,
   normalizeMarginCache,
@@ -147,6 +157,89 @@ async function handleMargin(res: import('node:http').ServerResponse) {
   }
 }
 
+function parseEmKlineMap(json: { data?: { klines?: string[] } | null }): Map<string, number> {
+  const klines = json.data?.klines ?? []
+  if (!klines.length) throw new Error('em kline empty')
+  const map = new Map<string, number>()
+  for (const row of klines) {
+    const parts = row.split(',')
+    const date = parts[0]
+    const close = Number(parts[2])
+    if (date && Number.isFinite(close)) map.set(date, close)
+  }
+  return map
+}
+
+async function fetchEmCloseMapViaCurl(url: string): Promise<Map<string, number>> {
+  const { stdout } = await execFileAsync(
+    CURL,
+    [
+      '-sS',
+      '--connect-timeout',
+      '20',
+      '--max-time',
+      '90',
+      '-L',
+      '-H',
+      `User-Agent: ${UA}`,
+      '-H',
+      'Referer: https://quote.eastmoney.com/',
+      url,
+    ],
+    { maxBuffer: 16 * 1024 * 1024 },
+  )
+  return parseEmKlineMap(JSON.parse(stdout) as { data?: { klines?: string[] } })
+}
+
+/** 本机 Node fetch 常因 TLS 对东财 hang up；失败后改走系统 curl */
+async function fetchEmCloseMap(secid: string, beg: string, end: string): Promise<Map<string, number>> {
+  const url =
+    `https://push2his.eastmoney.com/api/qt/stock/kline/get` +
+    `?secid=${encodeURIComponent(secid)}` +
+    `&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57` +
+    `&klt=101&fqt=1&beg=${beg}&end=${end}&lmt=100000`
+  let lastError: unknown
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await fetch(url, {
+        headers: { Referer: 'https://quote.eastmoney.com/', 'User-Agent': UA },
+      })
+      if (!res.ok) throw new Error(`em kline ${secid}: ${res.status}`)
+      return parseEmKlineMap((await res.json()) as { data?: { klines?: string[] } })
+    } catch (e) {
+      lastError = e
+      await new Promise((r) => setTimeout(r, 300 * (attempt + 1)))
+    }
+  }
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      return await fetchEmCloseMapViaCurl(url)
+    } catch (e) {
+      lastError = e
+      await new Promise((r) => setTimeout(r, 400 * (attempt + 1)))
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error(String(lastError))
+}
+
+async function handleGold(res: import('node:http').ServerResponse) {
+  const file = path.join(CACHE_DIR, 'gold.json')
+  try {
+    const result = await buildGoldSeries({
+      fetchCloseMap: fetchEmCloseMap,
+      async loadCache() {
+        return normalizeGoldCache(await readJsonFile(file))
+      },
+      async saveCache(cache: GoldCache) {
+        await writeJsonFile(file, cache)
+      },
+    })
+    return sendJson(res, 200, result)
+  } catch (e) {
+    return sendJson(res, 502, { message: e instanceof Error ? e.message : String(e) })
+  }
+}
+
 function attach(middlewares: Connect.Server) {
   middlewares.use(async (req, res, next) => {
     const pathname = (req.url ?? '').split('?')[0]
@@ -158,11 +251,15 @@ function attach(middlewares: Connect.Server) {
       if (req.method !== 'GET') return sendJson(res, 405, { message: 'method not allowed' })
       return handleMargin(res)
     }
+    if (pathname === '/api/gold/series') {
+      if (req.method !== 'GET') return sendJson(res, 405, { message: 'method not allowed' })
+      return handleGold(res)
+    }
     return next()
   })
 }
 
-/** 成交额 / 两融日频：缓存优先，增量补齐 → data/series */
+/** 成交额 / 两融 / 黄金日频：缓存优先，增量补齐 → data/series */
 export function marketSeriesPlugin(): Plugin {
   return {
     name: 'market-series',

@@ -44,6 +44,7 @@ export const INDEX_POSITION: Record<string, string> = {
   创业板指: '创业板龙头',
   创业板50: '创业板龙头子集',
   中证A500: '新一代均衡宽基',
+  黄金9999: '国内金价代理',
   未分类: '',
 }
 
@@ -216,8 +217,22 @@ export const ETF_UNIVERSE: EtfUniverseItem[] = sortEtfsByIndexOrder([
 
 const byCode = new Map(ETF_UNIVERSE.map((e) => [e.code, e]))
 
+/** 宽基篮子外的已知 ETF（如黄金观察 518880），不进 INDEX 筛选 */
+const EXTRA_BY_CODE = new Map<string, EtfUniverseItem>([
+  [
+    '518880',
+    {
+      code: '518880',
+      name: '黄金ETF华安',
+      indexName: '黄金9999',
+      exchange: 'SH',
+      secid: '1.518880',
+    },
+  ],
+])
+
 export function getEtfByCode(code: string): EtfUniverseItem {
-  const hit = byCode.get(code)
+  const hit = byCode.get(code) ?? EXTRA_BY_CODE.get(code)
   if (hit) return hit
   const exchange: EtfExchange = code.startsWith('15') ? 'SZ' : 'SH'
   return {

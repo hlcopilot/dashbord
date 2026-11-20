@@ -1,4 +1,4 @@
-/** 前端用：再导出根目录 20 只宽基注册表 */
+/** 前端用：再导出根目录 20 只宽基注册表 + 黄金观察元数据 */
 export {
   DEFAULT_ETF_CODE,
   ETF_UNIVERSE,
@@ -14,3 +14,5 @@ export {
   type EtfExchange,
   type EtfUniverseItem,
 } from '../etf-universe.ts'
+
+export { GOLD_ETF, GOLD_ETF_CODE, isGoldEtfCode } from '../gold-etf.ts'

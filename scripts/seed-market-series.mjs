@@ -1,12 +1,17 @@
 /**
- * 全量/补齐成交额与两融本地缓存
+ * 全量/补齐成交额、两融、黄金本地缓存
  * 用法：npm run series:seed
  *
  * 通过本地 Vite 中间件同款上游逻辑直接写入 data/series/*.json
  */
+import { execFile } from 'node:child_process'
 import { mkdir, writeFile, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { promisify } from 'node:util'
+
+const execFileAsync = promisify(execFile)
+const CURL = process.platform === 'win32' ? 'curl.exe' : 'curl'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const DIR = path.join(root, 'data', 'series')
@@ -138,6 +143,127 @@ async function seedMargin() {
   console.log(`[margin] saved ${Object.keys(cache.days).length} days (raw rows ${rowsTotal}) → ${file}`)
 }
 
-await seedTurnover()
-await seedMargin()
+async function curlJson(url) {
+  const { stdout } = await execFileAsync(
+    CURL,
+    ['-sS', '--connect-timeout', '20', '--max-time', '90', '-L', '-H', `User-Agent: ${UA}`, '-H', 'Referer: https://quote.eastmoney.com/', url],
+    { maxBuffer: 32 * 1024 * 1024 },
+  )
+  return JSON.parse(stdout)
+}
+
+async function emCloseMap(secid, beg, end) {
+  const url =
+    `https://push2his.eastmoney.com/api/qt/stock/kline/get` +
+    `?secid=${encodeURIComponent(secid)}` +
+    `&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57` +
+    `&klt=101&fqt=1&beg=${beg}&end=${end}&lmt=100000`
+  for (let i = 0; i < 4; i++) {
+    try {
+      const json = await curlJson(url)
+      const klines = json?.data?.klines ?? []
+      if (!klines.length) throw new Error('empty')
+      const map = new Map()
+      for (const row of klines) {
+        const parts = String(row).split(',')
+        const date = parts[0]
+        const close = Number(parts[2])
+        if (date && Number.isFinite(close)) map.set(date, close)
+      }
+      return map
+    } catch (e) {
+      if (i === 3) throw e
+      await sleep(400 * (i + 1))
+    }
+  }
+  return new Map()
+}
+
+async function seedGold() {
+  const file = path.join(DIR, 'gold.json')
+  const cache = await readCache(file)
+  cache.days = cache.days || {}
+  const end = new Date()
+  const endC = `${end.getFullYear()}${String(end.getMonth() + 1).padStart(2, '0')}${String(end.getDate()).padStart(2, '0')}`
+  const beg = '20130718'
+  const shauBeg = '20160419'
+  const auBeg = '20100104'
+  const xauBeg = '20100104'
+  console.log(`[gold] fetching 518880 + SHAU + Au9999 + XAU + UDI → ${endC}`)
+  const gold = await emCloseMap('1.518880', beg, endC)
+  await sleep(200)
+  const shau = await emCloseMap('118.SHAU', shauBeg, endC)
+  await sleep(200)
+  const au9999 = await emCloseMap('118.AU9999', auBeg, endC)
+  await sleep(200)
+  const xau = await emCloseMap('122.XAU', xauBeg, endC)
+  await sleep(200)
+  const usd = await emCloseMap('100.UDI', beg, endC)
+
+  const touch = (date) => {
+    if (!cache.days[date]) {
+      cache.days[date] = {
+        goldClose: null,
+        shauClose: null,
+        au9999Close: null,
+        xauClose: null,
+        usdIndex: null,
+      }
+    } else {
+      if (cache.days[date].goldClose === undefined) {
+        cache.days[date].goldClose = cache.days[date].goldClose ?? null
+      }
+      if (cache.days[date].shauClose === undefined) cache.days[date].shauClose = null
+      if (cache.days[date].au9999Close === undefined) cache.days[date].au9999Close = null
+      if (cache.days[date].xauClose === undefined) cache.days[date].xauClose = null
+    }
+    return cache.days[date]
+  }
+
+  for (const [date, close] of gold) {
+    const day = touch(date)
+    day.goldClose = Math.round(close * 1000) / 1000
+  }
+  for (const [date, close] of shau) {
+    const day = touch(date)
+    day.shauClose = Math.round(close * 100) / 100
+  }
+  for (const [date, close] of au9999) {
+    const day = touch(date)
+    day.au9999Close = Math.round(close * 100) / 100
+  }
+  for (const [date, close] of xau) {
+    const day = cache.days[date]
+    if (!day) continue
+    day.xauClose = Math.round(close * 100) / 100
+  }
+  for (const [date, close] of usd) {
+    const day = cache.days[date]
+    if (!day) continue
+    day.usdIndex = Math.round(close * 100) / 100
+  }
+  cache.updatedAt = new Date().toISOString()
+  await writeCache(file, cache)
+  const n = Object.keys(cache.days).length
+  const nShau = Object.values(cache.days).filter((d) => d.shauClose != null).length
+  const nAu = Object.values(cache.days).filter((d) => d.au9999Close != null).length
+  const nXau = Object.values(cache.days).filter((d) => d.xauClose != null).length
+  console.log(`[gold] saved ${n} days (SHAU ${nShau}, Au9999 ${nAu}, XAU ${nXau}) → ${file}`)
+}
+
+const only = (process.argv[2] || '').toLowerCase()
+if (!only || only === 'all') {
+  await seedTurnover()
+  await seedMargin()
+  await seedGold()
+} else if (only === 'gold') {
+  await seedGold()
+} else if (only === 'turnover') {
+  await seedTurnover()
+} else if (only === 'margin') {
+  await seedMargin()
+} else {
+  console.error(`unknown target: ${only} (use gold | turnover | margin | all)`)
+  process.exit(1)
+}
 console.log('done')

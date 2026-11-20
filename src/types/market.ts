@@ -75,6 +75,33 @@ export interface MarginSeriesResult {
   percentile3y: number
 }
 
+/** 黄金观察日频：518880 + SHAU + Au9999 + 伦敦金 XAU + 美元指数 */
+export interface GoldDaily {
+  date: string
+  /** 黄金 ETF 收盘价（元/份）；非 ETF 交易日可为 null */
+  goldClose: number | null
+  /** 上海金基准价（元/克）；无数据日可为 null */
+  shauClose: number | null
+  /** Au9999 现货收盘（元/克）；无数据日可为 null */
+  au9999Close: number | null
+  /** 伦敦金现货代理（美元/盎司）；日历错位可为 null */
+  xauClose: number | null
+  /** 美元指数；节假日错位可能为 null */
+  usdIndex: number | null
+}
+
+export interface GoldSeriesResult {
+  series: GoldDaily[]
+  asOf: string
+  latestGoldClose: number | null
+  latestShauClose: number | null
+  latestAu9999Close: number | null
+  latestXauClose: number | null
+  latestUsdIndex: number | null
+  warnings?: string[]
+  note?: string
+}
+
 /** 单只 ETF 日净流入（申赎代理） */
 export interface EtfFlowDaily {
   date: string
