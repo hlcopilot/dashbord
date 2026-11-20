@@ -123,6 +123,36 @@ export interface OilSeriesResult {
   note?: string
 }
 
+/** 风格观察：创业板指 / 中证红利点位比 + TTM PE 比 */
+export interface StyleDaily {
+  date: string
+  cybClose: number | null
+  divClose: number | null
+  cybPe: number | null
+  divPe: number | null
+  /** 创业板指 / 中证红利（日频） */
+  closeRatio: number | null
+  /** 创业板 TTM PE / 中证红利 TTM PE（乐咕月频） */
+  peRatio: number | null
+}
+
+export interface StyleSeriesResult {
+  series: StyleDaily[]
+  asOf: string
+  latestCloseRatio: number | null
+  latestPeRatio: number | null
+  latestCybClose: number | null
+  latestDivClose: number | null
+  latestCybPe: number | null
+  latestDivPe: number | null
+  /** 近 3 年点位比百分位 */
+  closePercentile3y: number
+  /** 近 3 年估值比百分位 */
+  pePercentile3y: number
+  warnings?: string[]
+  note?: string
+}
+
 /** 单只 ETF 日净流入（申赎代理） */
 export interface EtfFlowDaily {
   date: string

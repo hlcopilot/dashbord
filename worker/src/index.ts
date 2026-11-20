@@ -6,6 +6,7 @@
  * - ETF 申赎净流入（沪/深交易所份额 + 东财日 K）
  * - 黄金观察日频（518880 + SHAU / Au9999 / XAU + UDI）
  * - 石油观察日频（布伦特 B00Y + WTI CL00Y + UDI）
+ * - 风格观察日频（创业板/红利点位比 + TTM PE 比）
  */
 
 import {
@@ -29,6 +30,11 @@ import {
   buildOilSeries,
   normalizeOilCache,
 } from '../../oil-series-core'
+import { fetchLeguleguPeMap } from '../../style-pe-fetch'
+import {
+  buildStyleSeries,
+  normalizeStyleCache,
+} from '../../style-series-core'
 import {
   buildTurnoverSeries,
   normalizeTurnoverCache,
@@ -567,6 +573,29 @@ async function handleOilSeries(env: Env): Promise<Response> {
   }
 }
 
+async function handleStyleSeries(env: Env): Promise<Response> {
+  const kv = env.INTRADAY_KV
+  const key = 'series:style'
+  try {
+    const result = await buildStyleSeries({
+      fetchCloseMap: fetchEmCloseMap,
+      fetchPeMap: fetchLeguleguPeMap,
+      async loadCache() {
+        if (!kv) return normalizeStyleCache(null)
+        const raw = await kv.get(key)
+        return normalizeStyleCache(raw ? JSON.parse(raw) : null)
+      },
+      async saveCache(cache) {
+        if (!kv) return
+        await kv.put(key, JSON.stringify(cache))
+      },
+    })
+    return json(result)
+  } catch (e) {
+    return json({ message: e instanceof Error ? e.message : String(e) }, 502)
+  }
+}
+
 async function handleApi(request: Request, env: Env): Promise<Response> {
   const pathname = new URL(request.url).pathname
 
@@ -604,6 +633,11 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
   if (pathname === '/api/oil/series') {
     if (request.method !== 'GET') return json({ message: 'method not allowed' }, 405)
     return handleOilSeries(env)
+  }
+
+  if (pathname === '/api/style/series') {
+    if (request.method !== 'GET') return json({ message: 'method not allowed' }, 405)
+    return handleStyleSeries(env)
   }
 
   const rule = PROXY_RULES.find((r) => pathname === r.prefix || pathname.startsWith(`${r.prefix}/`))

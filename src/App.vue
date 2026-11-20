@@ -4,6 +4,7 @@ import EtfFlowSection from '@/components/EtfFlowSection.vue'
 import GoldSection from '@/components/GoldSection.vue'
 import MarginBalanceCard from '@/components/MarginBalanceCard.vue'
 import OilSection from '@/components/OilSection.vue'
+import StyleSection from '@/components/StyleSection.vue'
 import TurnoverPercentileCard from '@/components/TurnoverPercentileCard.vue'
 </script>
 
@@ -20,6 +21,7 @@ import TurnoverPercentileCard from '@/components/TurnoverPercentileCard.vue'
     <main class="page-main">
       <TurnoverPercentileCard />
       <MarginBalanceCard />
+      <StyleSection />
       <GoldSection />
       <OilSection />
       <EtfFlowSection />

@@ -296,22 +296,49 @@ async function seedOil() {
   console.log(`[oil] saved ${n} days (Brent ${nBrent}, WTI ${nWti}) → ${file}`)
 }
 
+async function seedStyle() {
+  const { buildStyleSeries, normalizeStyleCache } = await import('../style-series-core.ts')
+  const { fetchLeguleguPeMap } = await import('../style-pe-fetch.ts')
+  const file = path.join(DIR, 'style.json')
+  console.log('[style] building 创业板/红利 closes + legulegu PE …')
+  const result = await buildStyleSeries({
+    fetchCloseMap: emCloseMap,
+    fetchPeMap: fetchLeguleguPeMap,
+    async loadCache() {
+      return normalizeStyleCache(await readCache(file))
+    },
+    async saveCache(cache) {
+      await writeCache(file, cache)
+    },
+  })
+  console.log(
+    `[style] asOf ${result.asOf} closeRatio=${result.latestCloseRatio} peRatio=${result.latestPeRatio}` +
+      ` (closeΔ ${result.fetchedCloseDays}, peΔ ${result.fetchedPeDays}) → ${file}`,
+  )
+  if (result.warnings?.length) {
+    for (const w of result.warnings) console.warn(`[style] warn: ${w}`)
+  }
+}
+
 const only = (process.argv[2] || '').toLowerCase()
 if (!only || only === 'all') {
   await seedTurnover()
   await seedMargin()
   await seedGold()
   await seedOil()
+  await seedStyle()
 } else if (only === 'gold') {
   await seedGold()
 } else if (only === 'oil') {
   await seedOil()
+} else if (only === 'style') {
+  await seedStyle()
 } else if (only === 'turnover') {
   await seedTurnover()
 } else if (only === 'margin') {
   await seedMargin()
 } else {
-  console.error(`unknown target: ${only} (use gold | oil | turnover | margin | all)`)
+  console.error(`unknown target: ${only} (use gold | oil | style | turnover | margin | all)`)
   process.exit(1)
 }
 console.log('done')

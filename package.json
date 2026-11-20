@@ -17,7 +17,7 @@
     "cf:series:seed": "node scripts/seed-series-kv.mjs",
     "etf:seed": "node scripts/seed-etf-share.mjs",
     "etf:intraday:seed": "node --experimental-strip-types scripts/seed-etf-intraday.ts",
-    "series:seed": "node scripts/seed-market-series.mjs"
+    "series:seed": "node --experimental-strip-types scripts/seed-market-series.mjs"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",

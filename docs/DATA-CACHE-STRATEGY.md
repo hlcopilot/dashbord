@@ -20,6 +20,7 @@
 | 两融主图 | `GET /api/margin/series` | `data/series/margin.json` | `series:margin` | 东财 `RPTA_RZRQ_LSHJ` + 搜狐上证 | 倒序分页至缓存重叠早停；上证按日期窗口 | 前端读 API → `sliceMarginByRange` |
 | 黄金观察 | `GET /api/gold/series` | `data/series/gold.json` | `series:gold` | 东财日 K：`1.518880` + `118.SHAU` + `118.AU9999` + `122.XAU` + `100.UDI` | 近端约 5 日窗口重拉合并 | `ShanghaiGoldCard` / `LondonGoldCard` / `GoldPriceCard` → `sliceGoldByRange` |
 | 石油观察 | `GET /api/oil/series` | `data/series/oil.json` | `series:oil` | 东财日 K：`112.B00Y` + `102.CL00Y` + `100.UDI` | 近端约 5 日窗口重拉合并 | `OilPriceCard` → `sliceOilByRange` |
+| 风格观察 | `GET /api/style/series` | `data/series/style.json` | `series:style` | 东财日 K：`0.399006` + `1.000922`；乐咕 TTM PE：`399006.SZ` + `000922.CSI` | 点位近端约 5 日；PE 全量小样本重拉 | `StylePriceRatioCard` / `StylePeRatioCard` → `sliceStyleByRange` |
 | ETF 净流入（20 只宽基 + 黄金 518880） | `GET /api/etf/flow?code=` | `data/etf-share/{code}.json` | `etfcache:{code}` | 沪：上交所份额；深：深交所 `scsj_fund_jjgm`；东财日 K | 缺日份额 + 近端 T+1 重试；K 线对齐 closes | 宽基 `EtfFlowSection`；黄金区单独挂 `518880`（不进 20 篮筛选） |
 | ETF 当日分钟 K | `/api/local/etf-intraday/{code}*` + 东财代理 | `data/etf-intraday/{code}/*.json` | `etfintra:{code}:{date}` | 东财 1 分钟 K（最新日）+ trends2（近约 5 日） | 打开弹层同步近 5 日写回，更早靠归档积累 | 右键/长按日 → `EtfIntradayDialog` |
 | 成交额分时 | `/api/local/intraday*` | `data/intraday/*.json` | `day:YYYY-MM-DD` | 东财 trends2 近约 5 日 | 远端近 5 日覆盖写回，更早保留本地 | `syncIntradayArchive` 合并后再画 |
@@ -54,6 +55,14 @@
 - **增量**：各序列近约 5 日窗口重拉；冷启动 `20100104`。
 - **画图**：`OilSection` → `OilPriceCard` → `fetchOilSeries` → `sliceOilByRange`。
 - **Seed**：`npm run series:seed`（含 oil）或 `npm run series:seed -- oil`；云端 `cf:series:seed` 含 `series:oil`。
+
+## 风格观察
+
+- **缓存字段**：`days[date].{ cybClose, divClose, cybPe, divPe }`（`style-series-core.ts`）；前端再算 `closeRatio` / `peRatio`。
+- **上游**：东财 `0.399006`（创业板指）、`1.000922`（中证红利）；乐咕乐股 `399006.SZ` / `000922.CSI` 的 TTM PE（Cookie + `MD5(上海日 YYYY-MM-DD)` token，多为月末采样）。
+- **增量**：点位近约 5 日窗口；PE 全量小样本每次重拉合并；冷启动点位 `20100601`。
+- **画图**：`StyleSection` → `StylePriceRatioCard` / `StylePeRatioCard` → `fetchStyleSeries` → `sliceStyleByRange`；近 3 年百分位在前端算。
+- **Seed**：`npm run series:seed`（含 style）或 `npm run series:seed -- style`；云端 `cf:series:seed` 含 `series:style`。
 
 ## ETF 净流入
 
@@ -92,7 +101,7 @@
 ## 相关命令
 
 ```bash
-npm run series:seed      # 成交额 + 两融 + 黄金本地全量/补齐
+npm run series:seed      # 成交额 + 两融 + 黄金 + 石油 + 风格本地全量/补齐
 npm run etf:seed         # 20 只宽基份额+收盘价全量/补齐（可加 code；黄金用 518880）
 npm run cf:kv:seed            # 成交额分时 JSON 导入 KV（可选）
 npm run etf:intraday:seed     # 20 只近约 5 日分钟 K → data/etf-intraday（可加 code）

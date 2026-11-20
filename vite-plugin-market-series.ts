@@ -21,6 +21,12 @@ import {
   normalizeMarginCache,
   type MarginCache,
 } from './margin-series-core.ts'
+import { fetchLeguleguPeMap } from './style-pe-fetch.ts'
+import {
+  buildStyleSeries,
+  normalizeStyleCache,
+  type StyleCache,
+} from './style-series-core.ts'
 import {
   buildTurnoverSeries,
   normalizeTurnoverCache,
@@ -263,6 +269,25 @@ async function handleOil(res: import('node:http').ServerResponse) {
   }
 }
 
+async function handleStyle(res: import('node:http').ServerResponse) {
+  const file = path.join(CACHE_DIR, 'style.json')
+  try {
+    const result = await buildStyleSeries({
+      fetchCloseMap: fetchEmCloseMap,
+      fetchPeMap: fetchLeguleguPeMap,
+      async loadCache() {
+        return normalizeStyleCache(await readJsonFile(file))
+      },
+      async saveCache(cache: StyleCache) {
+        await writeJsonFile(file, cache)
+      },
+    })
+    return sendJson(res, 200, result)
+  } catch (e) {
+    return sendJson(res, 502, { message: e instanceof Error ? e.message : String(e) })
+  }
+}
+
 function attach(middlewares: Connect.Server) {
   middlewares.use(async (req, res, next) => {
     const pathname = (req.url ?? '').split('?')[0]
@@ -282,11 +307,15 @@ function attach(middlewares: Connect.Server) {
       if (req.method !== 'GET') return sendJson(res, 405, { message: 'method not allowed' })
       return handleOil(res)
     }
+    if (pathname === '/api/style/series') {
+      if (req.method !== 'GET') return sendJson(res, 405, { message: 'method not allowed' })
+      return handleStyle(res)
+    }
     return next()
   })
 }
 
-/** 成交额 / 两融 / 黄金 / 石油日频：缓存优先，增量补齐 → data/series */
+/** 成交额 / 两融 / 黄金 / 石油 / 风格日频：缓存优先，增量补齐 → data/series */
 export function marketSeriesPlugin(): Plugin {
   return {
     name: 'market-series',

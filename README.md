@@ -50,13 +50,14 @@ npm run deploy:cf             # Pages + Worker
 - **两融余额卡片**：两融余额（左轴）+ 上证指数（右轴），同样支持区间/缩放/高低点/均值
 - **黄金观察**：上海金 SHAU + Au9999（元/克）；伦敦金 XAU（美元/盎司）单独成图；另挂 518880 ETF 与申赎净流入。`series:seed` 含 gold；份额 `etf:seed -- 518880`
 - **石油观察**：布伦特 + WTI 同轴（美元/桶）叠美元指数。`series:seed` 含 oil（或 `series:seed -- oil`）
+- **风格观察**：创业板/红利点位比（日频）+ TTM PE 估值比（乐咕月频）。`series:seed` 含 style（或 `series:seed -- style`）
 - **ETF 净流入**：20 只宽基篮子，按「份额变动 × 收盘价」估算日净申赎；顶部「篮子累计」图悬停可看 9 个指数各自当日/累计。份额/收盘价优先本地缓存，日常只补增量。首次全量：`npm run etf:seed`
 - **ETF 当日分钟 K**：20 只卡通用；右键/长按 → 当日 OHLC + 量/额（非净流入）。日常打开弹层增量同步；全篮子冷启动：`etf:intraday:seed`，云端 `cf:etf-intraday:seed`
 - **H5 适配**：窄屏弱化图内拖移、区间 tab 可横滑、弹层全宽；详见 `docs/H5-MOBILE.md`
-- **本地积累**：分时写入 `data/intraday/`；成交额/两融/黄金写入 `data/series/`（与 ETF 同一套缓存优先策略）
+- **本地积累**：分时写入 `data/intraday/`；成交额/两融/黄金/石油/风格写入 `data/series/`（与 ETF 同一套缓存优先策略）
 
 ## 数据说明
 
-- 日线成交额 / 两融 / 黄金 / ETF：服务端缓存 + 增量（见 `docs/DATA-CACHE-STRATEGY.md`）
+- 日线成交额 / 两融 / 黄金 / 石油 / 风格 / ETF：服务端缓存 + 增量（见 `docs/DATA-CACHE-STRATEGY.md`）
 - 分时成交额 = 东财近 5 日 trends2 + 本地更早归档
 - 百分位默认按已收盘样本计算；盘中点参与展示与对比
