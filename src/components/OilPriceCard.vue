@@ -16,6 +16,7 @@ import { ArrowDown, ArrowUp, Refresh, RefreshRight } from '@element-plus/icons-v
 import { fetchOilSeries, filterOilDays, sliceOilByRange } from '@/api/oil'
 import type { OilSeriesResult, RangeKey } from '@/types/market'
 import { useNarrowScreen } from '@/composables/useNarrowScreen'
+import { useSeriesVisibility } from '@/composables/useSeriesVisibility'
 import {
   buildTimeAxisDataZoom,
   buildTimeAxisToolbox,
@@ -39,6 +40,8 @@ use([
 const COLOR_BRENT = '#b45309'
 const COLOR_WTI = '#0e7490'
 const COLOR_USD = '#64748b'
+
+const { visible, toggle } = useSeriesVisibility(['brent', 'wti', 'usd'] as const)
 
 const RANGE_OPTIONS: Array<{ label: string; value: RangeKey }> = [
   { label: '1个月', value: '1m' },
@@ -115,16 +118,58 @@ const chartOption = computed(() => {
   const list = rangedSeries.value
   if (!list.length) return {}
   const dates = list.map((p) => p.date)
-  const brent = list.map((p) => p.brentClose)
-  const wti = list.map((p) => p.wtiClose)
-  const usd = list.map((p) => p.usdIndex)
+  const showBrent = visible('brent')
+  const showWti = visible('wti')
+  const showUsd = visible('usd')
+  const showLeft = showBrent || showWti
+  const showRight = showUsd
+  const leftPad = showLeft ? (narrow.value ? 36 : 52) : narrow.value ? 12 : 24
+  const rightPad = showRight ? (narrow.value ? 36 : 52) : narrow.value ? 12 : 24
+
+  const series: Array<Record<string, unknown>> = []
+  if (showBrent) {
+    series.push({
+      name: '布伦特',
+      type: 'line',
+      yAxisIndex: 0,
+      data: list.map((p) => p.brentClose),
+      showSymbol: false,
+      connectNulls: false,
+      lineStyle: { color: COLOR_BRENT, width: 2 },
+      itemStyle: { color: COLOR_BRENT },
+    })
+  }
+  if (showWti) {
+    series.push({
+      name: 'WTI',
+      type: 'line',
+      yAxisIndex: 0,
+      data: list.map((p) => p.wtiClose),
+      showSymbol: false,
+      connectNulls: false,
+      lineStyle: { color: COLOR_WTI, width: 2 },
+      itemStyle: { color: COLOR_WTI },
+    })
+  }
+  if (showUsd) {
+    series.push({
+      name: '美元指数',
+      type: 'line',
+      yAxisIndex: 1,
+      data: list.map((p) => p.usdIndex),
+      showSymbol: false,
+      connectNulls: false,
+      lineStyle: { color: COLOR_USD, width: 1.5 },
+      itemStyle: { color: COLOR_USD },
+    })
+  }
 
   return {
     animation: false,
     legend: { show: false },
     grid: {
-      left: narrow.value ? 36 : 52,
-      right: narrow.value ? 36 : 52,
+      left: leftPad,
+      right: rightPad,
       top: narrow.value ? 28 : 36,
       bottom: chartTimeZoomGridBottom(narrow.value),
     },
@@ -139,11 +184,34 @@ const chartOption = computed(() => {
         if (typeof idx !== 'number') return ''
         const point = list[idx]
         if (!point) return ''
+        const rows: string[] = []
+        if (showBrent) {
+          rows.push(
+            tipRow(
+              COLOR_BRENT,
+              `布伦特：${point.brentClose == null ? '—' : formatNumber(point.brentClose, 2)} 美元/桶`,
+            ),
+          )
+        }
+        if (showWti) {
+          rows.push(
+            tipRow(
+              COLOR_WTI,
+              `WTI：${point.wtiClose == null ? '—' : formatNumber(point.wtiClose, 2)} 美元/桶`,
+            ),
+          )
+        }
+        if (showUsd) {
+          rows.push(
+            tipRow(
+              COLOR_USD,
+              `美元指数：${point.usdIndex == null ? '—' : formatNumber(point.usdIndex, 2)}`,
+            ),
+          )
+        }
         return `<div class="chart-tip">
           <div class="chart-tip__title">${formatDisplayDate(point.date)}</div>
-          ${tipRow(COLOR_BRENT, `布伦特：${point.brentClose == null ? '—' : formatNumber(point.brentClose, 2)} 美元/桶`)}
-          ${tipRow(COLOR_WTI, `WTI：${point.wtiClose == null ? '—' : formatNumber(point.wtiClose, 2)} 美元/桶`)}
-          ${tipRow(COLOR_USD, `美元指数：${point.usdIndex == null ? '—' : formatNumber(point.usdIndex, 2)}`)}
+          ${rows.join('')}
         </div>`
       },
     },
@@ -151,8 +219,8 @@ const chartOption = computed(() => {
       start: zoomStart.value,
       end: zoomEnd.value,
       accentColor: COLOR_BRENT,
-      left: narrow.value ? 8 : 52,
-      right: narrow.value ? 8 : 52,
+      left: narrow.value ? 8 : leftPad,
+      right: narrow.value ? 8 : rightPad,
       narrow: narrow.value,
     }),
     xAxis: {
@@ -170,53 +238,24 @@ const chartOption = computed(() => {
     yAxis: [
       {
         type: 'value',
-        name: '美元/桶',
+        name: showLeft ? '美元/桶' : '',
+        show: showLeft,
         scale: true,
         nameTextStyle: { color: '#64748b', fontSize: 11 },
-        splitLine: { lineStyle: { color: '#f1f5f9' } },
+        splitLine: { show: showLeft, lineStyle: { color: '#f1f5f9' } },
         axisLabel: { color: '#94a3b8', fontSize: 11 },
       },
       {
         type: 'value',
-        name: '美元指数',
+        name: showRight ? '美元指数' : '',
+        show: showRight,
         scale: true,
         nameTextStyle: { color: COLOR_USD, fontSize: 11 },
-        splitLine: { show: false },
+        splitLine: { show: !showLeft && showRight, lineStyle: { color: '#f1f5f9' } },
         axisLabel: { color: '#94a3b8', fontSize: 11 },
       },
     ],
-    series: [
-      {
-        name: '布伦特',
-        type: 'line',
-        yAxisIndex: 0,
-        data: brent,
-        showSymbol: false,
-        connectNulls: false,
-        lineStyle: { color: COLOR_BRENT, width: 2 },
-        itemStyle: { color: COLOR_BRENT },
-      },
-      {
-        name: 'WTI',
-        type: 'line',
-        yAxisIndex: 0,
-        data: wti,
-        showSymbol: false,
-        connectNulls: false,
-        lineStyle: { color: COLOR_WTI, width: 2 },
-        itemStyle: { color: COLOR_WTI },
-      },
-      {
-        name: '美元指数',
-        type: 'line',
-        yAxisIndex: 1,
-        data: usd,
-        showSymbol: false,
-        connectNulls: false,
-        lineStyle: { color: COLOR_USD, width: 1.5 },
-        itemStyle: { color: COLOR_USD },
-      },
-    ],
+    series,
   }
 })
 
@@ -337,18 +376,36 @@ onMounted(() => {
 
       <div class="chart-toolbar">
         <div class="legend">
-          <span class="legend-item">
+          <button
+            type="button"
+            class="legend-item"
+            :class="{ off: !visible('brent') }"
+            title="点击显隐"
+            @click="toggle('brent')"
+          >
             <i class="legend-line brent" />
             布伦特
-          </span>
-          <span class="legend-item">
+          </button>
+          <button
+            type="button"
+            class="legend-item"
+            :class="{ off: !visible('wti') }"
+            title="点击显隐"
+            @click="toggle('wti')"
+          >
             <i class="legend-line wti" />
             WTI
-          </span>
-          <span class="legend-item">
+          </button>
+          <button
+            type="button"
+            class="legend-item"
+            :class="{ off: !visible('usd') }"
+            title="点击显隐"
+            @click="toggle('usd')"
+          >
             <i class="legend-line usd" />
             美元指数
-          </span>
+          </button>
         </div>
         <div class="toolbar-right">
           <el-button size="small" :disabled="!isZoomed" :icon="RefreshRight" @click="resetZoom">
@@ -544,8 +601,20 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: #64748b;
   font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.legend-item.off {
+  opacity: 0.38;
+  text-decoration: line-through;
+  text-decoration-color: #94a3b8;
 }
 
 .legend-line {

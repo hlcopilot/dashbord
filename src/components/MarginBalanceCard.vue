@@ -18,6 +18,7 @@ import { ArrowDown, ArrowUp, Refresh, RefreshRight } from '@element-plus/icons-v
 import { fetchMarginSeries, sliceMarginByRange } from '@/api/margin'
 import type { MarginDaily, MarginSeriesResult, RangeKey } from '@/types/market'
 import { useNarrowScreen } from '@/composables/useNarrowScreen'
+import { useSeriesVisibility } from '@/composables/useSeriesVisibility'
 import {
   buildTimeAxisDataZoom,
   buildTimeAxisToolbox,
@@ -45,6 +46,8 @@ const COLOR_SSE = '#ff7a1a'
 const COLOR_UP = '#ef4444'
 const COLOR_DOWN = '#22c55e'
 const COLOR_AVG = '#8b5cf6'
+
+const { visible, toggle } = useSeriesVisibility(['margin', 'sse'] as const)
 
 const RANGE_OPTIONS: Array<{ label: string; value: RangeKey }> = [
   { label: '1个月', value: '1m' },
@@ -101,19 +104,29 @@ function buildTooltipHtml(dataIndex: number): string {
   const list = rangedSeries.value
   const point = list[dataIndex]
   if (!point) return ''
-  const prev = dataIndex > 0 ? list[dataIndex - 1] : null
-  const delta = prev ? point.marginYi - prev.marginYi : null
-  const deltaColor = delta == null ? COLOR_MARGIN : delta >= 0 ? COLOR_UP : COLOR_DOWN
-  const deltaText =
-    delta == null
-      ? '—'
-      : `${delta >= 0 ? '' : '-'}${formatAmountYi(Math.abs(delta))}`
-
+  const rows: string[] = []
+  if (visible('margin')) {
+    const prev = dataIndex > 0 ? list[dataIndex - 1] : null
+    const delta = prev ? point.marginYi - prev.marginYi : null
+    const deltaColor = delta == null ? COLOR_MARGIN : delta >= 0 ? COLOR_UP : COLOR_DOWN
+    const deltaText =
+      delta == null
+        ? '—'
+        : `${delta >= 0 ? '' : '-'}${formatAmountYi(Math.abs(delta))}`
+    rows.push(tipRow(COLOR_MARGIN, `两融余额：${formatAmountYi(point.marginYi)}`))
+    rows.push(tipRow(deltaColor, `较前一日增减：${deltaText}`))
+  }
+  if (visible('sse')) {
+    rows.push(
+      tipRow(
+        COLOR_SSE,
+        `上证指数：${point.sseClose == null ? '—' : formatNumber(point.sseClose)}`,
+      ),
+    )
+  }
   return `<div class="chart-tip">
     <div class="chart-tip__title">${formatDisplayDate(point.date)}</div>
-    ${tipRow(COLOR_MARGIN, `两融余额：${formatAmountYi(point.marginYi)}`)}
-    ${tipRow(COLOR_SSE, `上证指数：${point.sseClose == null ? '—' : formatNumber(point.sseClose)}`)}
-    ${tipRow(deltaColor, `较前一日增减：${deltaText}`)}
+    ${rows.join('')}
   </div>`
 }
 
@@ -146,9 +159,9 @@ const chartOption = computed(() => {
   if (!list.length) return {}
 
   const dates = list.map((p) => p.date)
-  const margin = list.map((p) => p.marginYi)
-  const sse = list.map((p) => p.sseClose)
-  const stats = findVisibleStats(list, zoomStart.value, zoomEnd.value)
+  const showMargin = visible('margin')
+  const showSse = visible('sse')
+  const stats = showMargin ? findVisibleStats(list, zoomStart.value, zoomEnd.value) : null
   const avgValue = stats ? Math.round(stats.avg * 100) / 100 : null
 
   const markPointData = []
@@ -185,6 +198,77 @@ const chartOption = computed(() => {
         },
       })
     }
+  }
+
+  const series: Array<Record<string, unknown>> = []
+  if (showMargin) {
+    series.push({
+      name: '两融余额',
+      type: 'line',
+      yAxisIndex: 0,
+      data: list.map((p) => p.marginYi),
+      showSymbol: false,
+      symbol: 'emptyCircle',
+      symbolSize: 8,
+      sampling: 'lttb',
+      lineStyle: { color: COLOR_MARGIN, width: 2 },
+      itemStyle: { color: COLOR_MARGIN },
+      areaStyle: {
+        color: {
+          type: 'linear',
+          x: 0,
+          y: 0,
+          x2: 0,
+          y2: 1,
+          colorStops: [
+            { offset: 0, color: 'rgba(59,130,246,0.16)' },
+            { offset: 1, color: 'rgba(59,130,246,0.01)' },
+          ],
+        },
+      },
+      markPoint: {
+        symbol: 'circle',
+        symbolSize: 7,
+        animation: false,
+        data: markPointData,
+      },
+      markLine:
+        avgValue == null
+          ? undefined
+          : {
+              symbol: 'none',
+              animation: false,
+              silent: true,
+              label: {
+                position: 'insideEndTop',
+                color: COLOR_AVG,
+                fontSize: 11,
+                formatter: () => `均 ${formatAmountYi(avgValue)}`,
+              },
+              lineStyle: {
+                color: COLOR_AVG,
+                type: 'dashed',
+                width: 1.5,
+                opacity: 0.9,
+              },
+              data: [{ yAxis: avgValue, name: '均值' }],
+            },
+    })
+  }
+  if (showSse) {
+    series.push({
+      name: '上证指数',
+      type: 'line',
+      yAxisIndex: 1,
+      data: list.map((p) => p.sseClose),
+      showSymbol: false,
+      symbol: 'emptyCircle',
+      symbolSize: 8,
+      sampling: 'lttb',
+      connectNulls: false,
+      lineStyle: { color: COLOR_SSE, width: 2 },
+      itemStyle: { color: COLOR_SSE },
+    })
   }
 
   return {
@@ -242,7 +326,8 @@ const chartOption = computed(() => {
     yAxis: [
       {
         type: 'value',
-        name: '两融余额',
+        name: showMargin ? '两融余额' : '',
+        show: showMargin,
         nameTextStyle: { color: COLOR_MARGIN, fontSize: 11, padding: [0, 0, 0, 8] },
         scale: true,
         splitNumber: 4,
@@ -253,87 +338,22 @@ const chartOption = computed(() => {
           fontSize: 12,
           formatter: (v: number) => formatAmountYi(v, 0),
         },
-        splitLine: { lineStyle: { color: '#eef0f4' } },
+        splitLine: { show: showMargin, lineStyle: { color: '#eef0f4' } },
       },
       {
         type: 'value',
-        name: '上证指数',
+        name: showSse ? '上证指数' : '',
+        show: showSse,
         nameTextStyle: { color: COLOR_SSE, fontSize: 11, padding: [0, 8, 0, 0] },
         scale: true,
         splitNumber: 4,
         axisLine: { show: false },
         axisTick: { show: false },
         axisLabel: { color: '#a8b0bd', fontSize: 12 },
-        splitLine: { show: false },
+        splitLine: { show: !showMargin && showSse, lineStyle: { color: '#eef0f4' } },
       },
     ],
-    series: [
-      {
-        name: '两融余额',
-        type: 'line',
-        yAxisIndex: 0,
-        data: margin,
-        showSymbol: false,
-        symbol: 'emptyCircle',
-        symbolSize: 8,
-        sampling: 'lttb',
-        lineStyle: { color: COLOR_MARGIN, width: 2 },
-        itemStyle: { color: COLOR_MARGIN },
-        areaStyle: {
-          color: {
-            type: 'linear',
-            x: 0,
-            y: 0,
-            x2: 0,
-            y2: 1,
-            colorStops: [
-              { offset: 0, color: 'rgba(59,130,246,0.16)' },
-              { offset: 1, color: 'rgba(59,130,246,0.01)' },
-            ],
-          },
-        },
-        markPoint: {
-          symbol: 'circle',
-          symbolSize: 7,
-          animation: false,
-          data: markPointData,
-        },
-        markLine:
-          avgValue == null
-            ? undefined
-            : {
-                symbol: 'none',
-                animation: false,
-                silent: true,
-                label: {
-                  position: 'insideEndTop',
-                  color: COLOR_AVG,
-                  fontSize: 11,
-                  formatter: () => `均 ${formatAmountYi(avgValue)}`,
-                },
-                lineStyle: {
-                  color: COLOR_AVG,
-                  type: 'dashed',
-                  width: 1.5,
-                  opacity: 0.9,
-                },
-                data: [{ yAxis: avgValue, name: '均值' }],
-              },
-      },
-      {
-        name: '上证指数',
-        type: 'line',
-        yAxisIndex: 1,
-        data: sse,
-        showSymbol: false,
-        symbol: 'emptyCircle',
-        symbolSize: 8,
-        sampling: 'lttb',
-        connectNulls: false,
-        lineStyle: { color: COLOR_SSE, width: 2 },
-        itemStyle: { color: COLOR_SSE },
-      },
-    ],
+    series,
   }
 })
 
@@ -428,14 +448,26 @@ onMounted(() => {
 
       <div class="chart-toolbar">
         <div class="legend">
-          <span class="legend-item">
+          <button
+            type="button"
+            class="legend-item"
+            :class="{ off: !visible('margin') }"
+            title="点击显隐"
+            @click="toggle('margin')"
+          >
             <i class="legend-line blue" />
             两融余额(亿元)
-          </span>
-          <span class="legend-item">
+          </button>
+          <button
+            type="button"
+            class="legend-item"
+            :class="{ off: !visible('sse') }"
+            title="点击显隐"
+            @click="toggle('sse')"
+          >
             <i class="legend-line orange" />
             上证指数
-          </span>
+          </button>
         </div>
         <div class="toolbar-right">
           <el-button
@@ -619,6 +651,20 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  user-select: none;
+}
+
+.legend-item.off {
+  opacity: 0.38;
+  text-decoration: line-through;
+  text-decoration-color: #94a3b8;
 }
 
 .legend-line {

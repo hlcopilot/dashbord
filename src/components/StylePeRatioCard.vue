@@ -16,6 +16,7 @@ import { ArrowDown, ArrowUp, Refresh, RefreshRight } from '@element-plus/icons-v
 import { fetchStyleSeries, filterPeRatioDays, sliceStyleByRange } from '@/api/style'
 import type { RangeKey, StyleSeriesResult } from '@/types/market'
 import { useNarrowScreen } from '@/composables/useNarrowScreen'
+import { useSeriesVisibility } from '@/composables/useSeriesVisibility'
 import {
   buildTimeAxisDataZoom,
   buildTimeAxisToolbox,
@@ -39,6 +40,8 @@ use([
 const COLOR_RATIO = '#0369a1'
 const COLOR_CYB = '#0284c7'
 const COLOR_DIV = '#0f766e'
+
+const { visible, toggle } = useSeriesVisibility(['ratio', 'cyb', 'div'] as const)
 
 const RANGE_OPTIONS: Array<{ label: string; value: RangeKey }> = [
   { label: '1年', value: '1y' },
@@ -103,16 +106,64 @@ const chartOption = computed(() => {
   const list = rangedSeries.value
   if (!list.length) return {}
   const dates = list.map((p) => p.date)
-  const ratios = list.map((p) => p.peRatio)
-  const cybPe = list.map((p) => p.cybPe)
-  const divPe = list.map((p) => p.divPe)
+  const showRatio = visible('ratio')
+  const showCyb = visible('cyb')
+  const showDiv = visible('div')
+  const showLeft = showRatio
+  const showRight = showCyb || showDiv
+  const leftPad = showLeft ? (narrow.value ? 40 : 52) : narrow.value ? 12 : 24
+  const rightPad = showRight ? (narrow.value ? 40 : 52) : narrow.value ? 12 : 24
+
+  const series: Array<Record<string, unknown>> = []
+  if (showRatio) {
+    series.push({
+      name: '估值比',
+      type: 'line',
+      yAxisIndex: 0,
+      data: list.map((p) => p.peRatio),
+      showSymbol: true,
+      symbolSize: 5,
+      connectNulls: true,
+      z: 3,
+      lineStyle: { color: COLOR_RATIO, width: 2.5 },
+      itemStyle: { color: COLOR_RATIO },
+    })
+  }
+  if (showCyb) {
+    series.push({
+      name: '创业板 PE',
+      type: 'line',
+      yAxisIndex: 1,
+      data: list.map((p) => p.cybPe),
+      showSymbol: true,
+      symbolSize: 4,
+      connectNulls: true,
+      z: 2,
+      lineStyle: { color: COLOR_CYB, width: 1.5 },
+      itemStyle: { color: COLOR_CYB },
+    })
+  }
+  if (showDiv) {
+    series.push({
+      name: '红利 PE',
+      type: 'line',
+      yAxisIndex: 1,
+      data: list.map((p) => p.divPe),
+      showSymbol: true,
+      symbolSize: 4,
+      connectNulls: true,
+      z: 2,
+      lineStyle: { color: COLOR_DIV, width: 1.5 },
+      itemStyle: { color: COLOR_DIV },
+    })
+  }
 
   return {
     animation: false,
     legend: { show: false },
     grid: {
-      left: narrow.value ? 40 : 52,
-      right: narrow.value ? 40 : 52,
+      left: leftPad,
+      right: rightPad,
       top: narrow.value ? 28 : 36,
       bottom: chartTimeZoomGridBottom(narrow.value),
     },
@@ -127,11 +178,34 @@ const chartOption = computed(() => {
         if (typeof idx !== 'number') return ''
         const point = list[idx]
         if (!point) return ''
+        const rows: string[] = []
+        if (showRatio) {
+          rows.push(
+            tipRow(
+              COLOR_RATIO,
+              `估值比：${point.peRatio == null ? '—' : formatNumber(point.peRatio, 4)}`,
+            ),
+          )
+        }
+        if (showCyb) {
+          rows.push(
+            tipRow(
+              COLOR_CYB,
+              `创业板 PE：${point.cybPe == null ? '—' : formatNumber(point.cybPe, 2)}`,
+            ),
+          )
+        }
+        if (showDiv) {
+          rows.push(
+            tipRow(
+              COLOR_DIV,
+              `红利 PE：${point.divPe == null ? '—' : formatNumber(point.divPe, 2)}`,
+            ),
+          )
+        }
         return `<div class="chart-tip">
           <div class="chart-tip__title">${formatDisplayDate(point.date)}</div>
-          ${tipRow(COLOR_RATIO, `估值比：${point.peRatio == null ? '—' : formatNumber(point.peRatio, 4)}`)}
-          ${tipRow(COLOR_CYB, `创业板 PE：${point.cybPe == null ? '—' : formatNumber(point.cybPe, 2)}`)}
-          ${tipRow(COLOR_DIV, `红利 PE：${point.divPe == null ? '—' : formatNumber(point.divPe, 2)}`)}
+          ${rows.join('')}
         </div>`
       },
     },
@@ -139,8 +213,8 @@ const chartOption = computed(() => {
       start: zoomStart.value,
       end: zoomEnd.value,
       accentColor: COLOR_RATIO,
-      left: narrow.value ? 8 : 52,
-      right: narrow.value ? 8 : 52,
+      left: narrow.value ? 8 : leftPad,
+      right: narrow.value ? 8 : rightPad,
       narrow: narrow.value,
     }),
     xAxis: {
@@ -158,59 +232,24 @@ const chartOption = computed(() => {
     yAxis: [
       {
         type: 'value',
-        name: '估值比',
+        name: showLeft ? '估值比' : '',
+        show: showLeft,
         scale: true,
         nameTextStyle: { color: COLOR_RATIO, fontSize: 11 },
-        splitLine: { lineStyle: { color: '#f1f5f9' } },
+        splitLine: { show: showLeft, lineStyle: { color: '#f1f5f9' } },
         axisLabel: { color: '#94a3b8', fontSize: 11 },
       },
       {
         type: 'value',
-        name: 'TTM PE',
+        name: showRight ? 'TTM PE' : '',
+        show: showRight,
         scale: true,
         nameTextStyle: { color: '#64748b', fontSize: 11 },
-        splitLine: { show: false },
+        splitLine: { show: !showLeft && showRight, lineStyle: { color: '#f1f5f9' } },
         axisLabel: { color: '#94a3b8', fontSize: 11 },
       },
     ],
-    series: [
-      {
-        name: '估值比',
-        type: 'line',
-        yAxisIndex: 0,
-        data: ratios,
-        showSymbol: true,
-        symbolSize: 5,
-        connectNulls: true,
-        z: 3,
-        lineStyle: { color: COLOR_RATIO, width: 2.5 },
-        itemStyle: { color: COLOR_RATIO },
-      },
-      {
-        name: '创业板 PE',
-        type: 'line',
-        yAxisIndex: 1,
-        data: cybPe,
-        showSymbol: true,
-        symbolSize: 4,
-        connectNulls: true,
-        z: 2,
-        lineStyle: { color: COLOR_CYB, width: 1.5 },
-        itemStyle: { color: COLOR_CYB },
-      },
-      {
-        name: '红利 PE',
-        type: 'line',
-        yAxisIndex: 1,
-        data: divPe,
-        showSymbol: true,
-        symbolSize: 4,
-        connectNulls: true,
-        z: 2,
-        lineStyle: { color: COLOR_DIV, width: 1.5 },
-        itemStyle: { color: COLOR_DIV },
-      },
-    ],
+    series,
   }
 })
 
@@ -323,18 +362,36 @@ onMounted(() => {
 
       <div class="chart-toolbar">
         <div class="legend">
-          <span class="legend-item">
+          <button
+            type="button"
+            class="legend-item"
+            :class="{ off: !visible('ratio') }"
+            title="点击显隐"
+            @click="toggle('ratio')"
+          >
             <i class="legend-line accent" />
             估值比
-          </span>
-          <span class="legend-item">
+          </button>
+          <button
+            type="button"
+            class="legend-item"
+            :class="{ off: !visible('cyb') }"
+            title="点击显隐"
+            @click="toggle('cyb')"
+          >
             <i class="legend-line cyb" />
             创业板 PE
-          </span>
-          <span class="legend-item">
+          </button>
+          <button
+            type="button"
+            class="legend-item"
+            :class="{ off: !visible('div') }"
+            title="点击显隐"
+            @click="toggle('div')"
+          >
             <i class="legend-line div" />
             红利 PE
-          </span>
+          </button>
         </div>
         <div class="toolbar-right">
           <el-button size="small" :disabled="!isZoomed" :icon="RefreshRight" @click="resetZoom">
@@ -346,7 +403,7 @@ onMounted(() => {
         </div>
       </div>
 
-      <p class="zoom-hint">左轴估值比；右轴叠两侧 TTM PE（月频采样）。</p>
+      <p class="zoom-hint">点击图例显隐曲线（轴会按可见序列重标度）；PE 为月频采样。</p>
 
       <div class="chart-wrap">
         <v-chart
@@ -519,8 +576,20 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: #64748b;
   font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.legend-item.off {
+  opacity: 0.38;
+  text-decoration: line-through;
+  text-decoration-color: #94a3b8;
 }
 
 .legend-line {

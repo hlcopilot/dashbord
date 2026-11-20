@@ -16,6 +16,7 @@ import { ArrowDown, ArrowUp, Refresh, RefreshRight } from '@element-plus/icons-v
 import { fetchGoldSeries, filterSpotGoldDays, sliceGoldByRange } from '@/api/gold'
 import type { GoldSeriesResult, RangeKey } from '@/types/market'
 import { useNarrowScreen } from '@/composables/useNarrowScreen'
+import { useSeriesVisibility } from '@/composables/useSeriesVisibility'
 import {
   buildTimeAxisDataZoom,
   buildTimeAxisToolbox,
@@ -39,6 +40,8 @@ use([
 const COLOR_SHAU = '#2563eb'
 const COLOR_AU = '#0f766e'
 const COLOR_USD = '#f97316'
+
+const { visible, toggle } = useSeriesVisibility(['shau', 'au', 'usd'] as const)
 
 const RANGE_OPTIONS: Array<{ label: string; value: RangeKey }> = [
   { label: '1个月', value: '1m' },
@@ -115,16 +118,58 @@ const chartOption = computed(() => {
   const list = rangedSeries.value
   if (!list.length) return {}
   const dates = list.map((p) => p.date)
-  const shau = list.map((p) => p.shauClose)
-  const au = list.map((p) => p.au9999Close)
-  const usd = list.map((p) => p.usdIndex)
+  const showShau = visible('shau')
+  const showAu = visible('au')
+  const showUsd = visible('usd')
+  const showLeft = showShau || showAu
+  const showRight = showUsd
+  const leftPad = showLeft ? (narrow.value ? 36 : 52) : narrow.value ? 12 : 24
+  const rightPad = showRight ? (narrow.value ? 36 : 52) : narrow.value ? 12 : 24
+
+  const series: Array<Record<string, unknown>> = []
+  if (showShau) {
+    series.push({
+      name: '上海金',
+      type: 'line',
+      yAxisIndex: 0,
+      data: list.map((p) => p.shauClose),
+      showSymbol: false,
+      connectNulls: false,
+      lineStyle: { color: COLOR_SHAU, width: 2 },
+      itemStyle: { color: COLOR_SHAU },
+    })
+  }
+  if (showAu) {
+    series.push({
+      name: 'Au9999',
+      type: 'line',
+      yAxisIndex: 0,
+      data: list.map((p) => p.au9999Close),
+      showSymbol: false,
+      connectNulls: false,
+      lineStyle: { color: COLOR_AU, width: 2 },
+      itemStyle: { color: COLOR_AU },
+    })
+  }
+  if (showUsd) {
+    series.push({
+      name: '美元指数',
+      type: 'line',
+      yAxisIndex: 1,
+      data: list.map((p) => p.usdIndex),
+      showSymbol: false,
+      connectNulls: false,
+      lineStyle: { color: COLOR_USD, width: 1.5 },
+      itemStyle: { color: COLOR_USD },
+    })
+  }
 
   return {
     animation: false,
     legend: { show: false },
     grid: {
-      left: narrow.value ? 36 : 52,
-      right: narrow.value ? 36 : 52,
+      left: leftPad,
+      right: rightPad,
       top: narrow.value ? 28 : 36,
       bottom: chartTimeZoomGridBottom(narrow.value),
     },
@@ -139,11 +184,34 @@ const chartOption = computed(() => {
         if (typeof idx !== 'number') return ''
         const point = list[idx]
         if (!point) return ''
+        const rows: string[] = []
+        if (showShau) {
+          rows.push(
+            tipRow(
+              COLOR_SHAU,
+              `上海金：${point.shauClose == null ? '—' : formatNumber(point.shauClose, 2)} 元/克`,
+            ),
+          )
+        }
+        if (showAu) {
+          rows.push(
+            tipRow(
+              COLOR_AU,
+              `Au9999：${point.au9999Close == null ? '—' : formatNumber(point.au9999Close, 2)} 元/克`,
+            ),
+          )
+        }
+        if (showUsd) {
+          rows.push(
+            tipRow(
+              COLOR_USD,
+              `美元指数：${point.usdIndex == null ? '—' : formatNumber(point.usdIndex, 2)}`,
+            ),
+          )
+        }
         return `<div class="chart-tip">
           <div class="chart-tip__title">${formatDisplayDate(point.date)}</div>
-          ${tipRow(COLOR_SHAU, `上海金：${point.shauClose == null ? '—' : formatNumber(point.shauClose, 2)} 元/克`)}
-          ${tipRow(COLOR_AU, `Au9999：${point.au9999Close == null ? '—' : formatNumber(point.au9999Close, 2)} 元/克`)}
-          ${tipRow(COLOR_USD, `美元指数：${point.usdIndex == null ? '—' : formatNumber(point.usdIndex, 2)}`)}
+          ${rows.join('')}
         </div>`
       },
     },
@@ -151,8 +219,8 @@ const chartOption = computed(() => {
       start: zoomStart.value,
       end: zoomEnd.value,
       accentColor: COLOR_SHAU,
-      left: narrow.value ? 8 : 52,
-      right: narrow.value ? 8 : 52,
+      left: narrow.value ? 8 : leftPad,
+      right: narrow.value ? 8 : rightPad,
       narrow: narrow.value,
     }),
     xAxis: {
@@ -170,53 +238,24 @@ const chartOption = computed(() => {
     yAxis: [
       {
         type: 'value',
-        name: '元/克',
+        name: showLeft ? '元/克' : '',
+        show: showLeft,
         scale: true,
         nameTextStyle: { color: '#64748b', fontSize: 11 },
-        splitLine: { lineStyle: { color: '#f1f5f9' } },
+        splitLine: { show: showLeft, lineStyle: { color: '#f1f5f9' } },
         axisLabel: { color: '#94a3b8', fontSize: 11 },
       },
       {
         type: 'value',
-        name: '美元指数',
+        name: showRight ? '美元指数' : '',
+        show: showRight,
         scale: true,
         nameTextStyle: { color: COLOR_USD, fontSize: 11 },
-        splitLine: { show: false },
+        splitLine: { show: !showLeft && showRight, lineStyle: { color: '#f1f5f9' } },
         axisLabel: { color: '#94a3b8', fontSize: 11 },
       },
     ],
-    series: [
-      {
-        name: '上海金',
-        type: 'line',
-        yAxisIndex: 0,
-        data: shau,
-        showSymbol: false,
-        connectNulls: false,
-        lineStyle: { color: COLOR_SHAU, width: 2 },
-        itemStyle: { color: COLOR_SHAU },
-      },
-      {
-        name: 'Au9999',
-        type: 'line',
-        yAxisIndex: 0,
-        data: au,
-        showSymbol: false,
-        connectNulls: false,
-        lineStyle: { color: COLOR_AU, width: 2 },
-        itemStyle: { color: COLOR_AU },
-      },
-      {
-        name: '美元指数',
-        type: 'line',
-        yAxisIndex: 1,
-        data: usd,
-        showSymbol: false,
-        connectNulls: false,
-        lineStyle: { color: COLOR_USD, width: 1.5 },
-        itemStyle: { color: COLOR_USD },
-      },
-    ],
+    series,
   }
 })
 
@@ -339,18 +378,36 @@ onMounted(() => {
 
       <div class="chart-toolbar">
         <div class="legend">
-          <span class="legend-item">
+          <button
+            type="button"
+            class="legend-item"
+            :class="{ off: !visible('shau') }"
+            title="点击显隐"
+            @click="toggle('shau')"
+          >
             <i class="legend-line blue" />
             上海金
-          </span>
-          <span class="legend-item">
+          </button>
+          <button
+            type="button"
+            class="legend-item"
+            :class="{ off: !visible('au') }"
+            title="点击显隐"
+            @click="toggle('au')"
+          >
             <i class="legend-line teal" />
             Au9999
-          </span>
-          <span class="legend-item">
+          </button>
+          <button
+            type="button"
+            class="legend-item"
+            :class="{ off: !visible('usd') }"
+            title="点击显隐"
+            @click="toggle('usd')"
+          >
             <i class="legend-line orange" />
             美元指数
-          </span>
+          </button>
         </div>
         <div class="toolbar-right">
           <el-button size="small" :disabled="!isZoomed" :icon="RefreshRight" @click="resetZoom">
@@ -546,8 +603,20 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: #64748b;
   font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.legend-item.off {
+  opacity: 0.38;
+  text-decoration: line-through;
+  text-decoration-color: #94a3b8;
 }
 
 .legend-line {

@@ -16,6 +16,7 @@ import { ArrowDown, ArrowUp, Refresh, RefreshRight } from '@element-plus/icons-v
 import { fetchGoldSeries, filterXauDays, sliceGoldByRange } from '@/api/gold'
 import type { GoldSeriesResult, RangeKey } from '@/types/market'
 import { useNarrowScreen } from '@/composables/useNarrowScreen'
+import { useSeriesVisibility } from '@/composables/useSeriesVisibility'
 import {
   buildTimeAxisDataZoom,
   buildTimeAxisToolbox,
@@ -38,6 +39,8 @@ use([
 
 const COLOR_XAU = '#c2410c'
 const COLOR_USD = '#3b82f6'
+
+const { visible, toggle } = useSeriesVisibility(['xau', 'usd'] as const)
 
 const RANGE_OPTIONS: Array<{ label: string; value: RangeKey }> = [
   { label: '1个月', value: '1m' },
@@ -105,15 +108,56 @@ const chartOption = computed(() => {
   const list = rangedSeries.value
   if (!list.length) return {}
   const dates = list.map((p) => p.date)
-  const xau = list.map((p) => p.xauClose)
-  const usd = list.map((p) => p.usdIndex)
+  const showXau = visible('xau')
+  const showUsd = visible('usd')
+  const leftPad = showXau ? (narrow.value ? 40 : 56) : narrow.value ? 12 : 24
+  const rightPad = showUsd ? (narrow.value ? 36 : 52) : narrow.value ? 12 : 24
+
+  const series: Array<Record<string, unknown>> = []
+  if (showXau) {
+    series.push({
+      name: '伦敦金',
+      type: 'line',
+      yAxisIndex: 0,
+      data: list.map((p) => p.xauClose),
+      showSymbol: false,
+      connectNulls: false,
+      lineStyle: { color: COLOR_XAU, width: 2 },
+      itemStyle: { color: COLOR_XAU },
+      areaStyle: {
+        color: {
+          type: 'linear',
+          x: 0,
+          y: 0,
+          x2: 0,
+          y2: 1,
+          colorStops: [
+            { offset: 0, color: 'rgba(194,65,12,0.14)' },
+            { offset: 1, color: 'rgba(194,65,12,0.02)' },
+          ],
+        },
+      },
+    })
+  }
+  if (showUsd) {
+    series.push({
+      name: '美元指数',
+      type: 'line',
+      yAxisIndex: 1,
+      data: list.map((p) => p.usdIndex),
+      showSymbol: false,
+      connectNulls: false,
+      lineStyle: { color: COLOR_USD, width: 1.5 },
+      itemStyle: { color: COLOR_USD },
+    })
+  }
 
   return {
     animation: false,
     legend: { show: false },
     grid: {
-      left: narrow.value ? 40 : 56,
-      right: narrow.value ? 36 : 52,
+      left: leftPad,
+      right: rightPad,
       top: narrow.value ? 28 : 36,
       bottom: chartTimeZoomGridBottom(narrow.value),
     },
@@ -128,10 +172,26 @@ const chartOption = computed(() => {
         if (typeof idx !== 'number') return ''
         const point = list[idx]
         if (!point) return ''
+        const rows: string[] = []
+        if (showXau) {
+          rows.push(
+            tipRow(
+              COLOR_XAU,
+              `伦敦金：${point.xauClose == null ? '—' : formatNumber(point.xauClose, 2)} 美元/盎司`,
+            ),
+          )
+        }
+        if (showUsd) {
+          rows.push(
+            tipRow(
+              COLOR_USD,
+              `美元指数：${point.usdIndex == null ? '—' : formatNumber(point.usdIndex, 2)}`,
+            ),
+          )
+        }
         return `<div class="chart-tip">
           <div class="chart-tip__title">${formatDisplayDate(point.date)}</div>
-          ${tipRow(COLOR_XAU, `伦敦金：${point.xauClose == null ? '—' : formatNumber(point.xauClose, 2)} 美元/盎司`)}
-          ${tipRow(COLOR_USD, `美元指数：${point.usdIndex == null ? '—' : formatNumber(point.usdIndex, 2)}`)}
+          ${rows.join('')}
         </div>`
       },
     },
@@ -139,8 +199,8 @@ const chartOption = computed(() => {
       start: zoomStart.value,
       end: zoomEnd.value,
       accentColor: COLOR_XAU,
-      left: narrow.value ? 8 : 56,
-      right: narrow.value ? 8 : 52,
+      left: narrow.value ? 8 : leftPad,
+      right: narrow.value ? 8 : rightPad,
       narrow: narrow.value,
     }),
     xAxis: {
@@ -158,56 +218,24 @@ const chartOption = computed(() => {
     yAxis: [
       {
         type: 'value',
-        name: '美元/盎司',
+        name: showXau ? '美元/盎司' : '',
+        show: showXau,
         scale: true,
         nameTextStyle: { color: COLOR_XAU, fontSize: 11 },
-        splitLine: { lineStyle: { color: '#f1f5f9' } },
+        splitLine: { show: showXau, lineStyle: { color: '#f1f5f9' } },
         axisLabel: { color: '#94a3b8', fontSize: 11 },
       },
       {
         type: 'value',
-        name: '美元指数',
+        name: showUsd ? '美元指数' : '',
+        show: showUsd,
         scale: true,
         nameTextStyle: { color: COLOR_USD, fontSize: 11 },
-        splitLine: { show: false },
+        splitLine: { show: !showXau && showUsd, lineStyle: { color: '#f1f5f9' } },
         axisLabel: { color: '#94a3b8', fontSize: 11 },
       },
     ],
-    series: [
-      {
-        name: '伦敦金',
-        type: 'line',
-        yAxisIndex: 0,
-        data: xau,
-        showSymbol: false,
-        connectNulls: false,
-        lineStyle: { color: COLOR_XAU, width: 2 },
-        itemStyle: { color: COLOR_XAU },
-        areaStyle: {
-          color: {
-            type: 'linear',
-            x: 0,
-            y: 0,
-            x2: 0,
-            y2: 1,
-            colorStops: [
-              { offset: 0, color: 'rgba(194,65,12,0.14)' },
-              { offset: 1, color: 'rgba(194,65,12,0.02)' },
-            ],
-          },
-        },
-      },
-      {
-        name: '美元指数',
-        type: 'line',
-        yAxisIndex: 1,
-        data: usd,
-        showSymbol: false,
-        connectNulls: false,
-        lineStyle: { color: COLOR_USD, width: 1.5 },
-        itemStyle: { color: COLOR_USD },
-      },
-    ],
+    series,
   }
 })
 
@@ -313,14 +341,26 @@ onMounted(() => {
 
       <div class="chart-toolbar">
         <div class="legend">
-          <span class="legend-item">
+          <button
+            type="button"
+            class="legend-item"
+            :class="{ off: !visible('xau') }"
+            title="点击显隐"
+            @click="toggle('xau')"
+          >
             <i class="legend-line orange" />
             伦敦金
-          </span>
-          <span class="legend-item">
+          </button>
+          <button
+            type="button"
+            class="legend-item"
+            :class="{ off: !visible('usd') }"
+            title="点击显隐"
+            @click="toggle('usd')"
+          >
             <i class="legend-line blue" />
             美元指数
-          </span>
+          </button>
         </div>
         <div class="toolbar-right">
           <el-button size="small" :disabled="!isZoomed" :icon="RefreshRight" @click="resetZoom">
@@ -510,8 +550,20 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: #64748b;
   font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.legend-item.off {
+  opacity: 0.38;
+  text-decoration: line-through;
+  text-decoration-color: #94a3b8;
 }
 
 .legend-line {

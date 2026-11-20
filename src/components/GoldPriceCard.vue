@@ -16,6 +16,7 @@ import { ArrowDown, ArrowUp, Refresh, RefreshRight } from '@element-plus/icons-v
 import { fetchGoldSeries, filterGoldEtfDays, sliceGoldByRange } from '@/api/gold'
 import type { GoldSeriesResult, RangeKey } from '@/types/market'
 import { useNarrowScreen } from '@/composables/useNarrowScreen'
+import { useSeriesVisibility } from '@/composables/useSeriesVisibility'
 import {
   buildTimeAxisDataZoom,
   buildTimeAxisToolbox,
@@ -38,6 +39,8 @@ use([
 
 const COLOR_GOLD = '#d97706'
 const COLOR_USD = '#3b82f6'
+
+const { visible, toggle } = useSeriesVisibility(['gold', 'usd'] as const)
 
 const RANGE_OPTIONS: Array<{ label: string; value: RangeKey }> = [
   { label: '1个月', value: '1m' },
@@ -105,15 +108,55 @@ const chartOption = computed(() => {
   const list = rangedSeries.value
   if (!list.length) return {}
   const dates = list.map((p) => p.date)
-  const gold = list.map((p) => p.goldClose)
-  const usd = list.map((p) => p.usdIndex)
+  const showGold = visible('gold')
+  const showUsd = visible('usd')
+  const leftPad = showGold ? (narrow.value ? 36 : 52) : narrow.value ? 12 : 24
+  const rightPad = showUsd ? (narrow.value ? 36 : 52) : narrow.value ? 12 : 24
+
+  const series: Array<Record<string, unknown>> = []
+  if (showGold) {
+    series.push({
+      name: '黄金ETF',
+      type: 'line',
+      yAxisIndex: 0,
+      data: list.map((p) => p.goldClose),
+      showSymbol: false,
+      lineStyle: { color: COLOR_GOLD, width: 2 },
+      itemStyle: { color: COLOR_GOLD },
+      areaStyle: {
+        color: {
+          type: 'linear',
+          x: 0,
+          y: 0,
+          x2: 0,
+          y2: 1,
+          colorStops: [
+            { offset: 0, color: 'rgba(217,119,6,0.16)' },
+            { offset: 1, color: 'rgba(217,119,6,0.02)' },
+          ],
+        },
+      },
+    })
+  }
+  if (showUsd) {
+    series.push({
+      name: '美元指数',
+      type: 'line',
+      yAxisIndex: 1,
+      data: list.map((p) => p.usdIndex),
+      showSymbol: false,
+      connectNulls: false,
+      lineStyle: { color: COLOR_USD, width: 2 },
+      itemStyle: { color: COLOR_USD },
+    })
+  }
 
   return {
     animation: false,
     legend: { show: false },
     grid: {
-      left: narrow.value ? 36 : 52,
-      right: narrow.value ? 36 : 52,
+      left: leftPad,
+      right: rightPad,
       top: narrow.value ? 28 : 36,
       bottom: chartTimeZoomGridBottom(narrow.value),
     },
@@ -128,10 +171,26 @@ const chartOption = computed(() => {
         if (typeof idx !== 'number') return ''
         const point = list[idx]
         if (!point) return ''
+        const rows: string[] = []
+        if (showGold) {
+          rows.push(
+            tipRow(
+              COLOR_GOLD,
+              `黄金ETF：${point.goldClose == null ? '—' : formatNumber(point.goldClose, 3)}`,
+            ),
+          )
+        }
+        if (showUsd) {
+          rows.push(
+            tipRow(
+              COLOR_USD,
+              `美元指数：${point.usdIndex == null ? '—' : formatNumber(point.usdIndex, 2)}`,
+            ),
+          )
+        }
         return `<div class="chart-tip">
           <div class="chart-tip__title">${formatDisplayDate(point.date)}</div>
-          ${tipRow(COLOR_GOLD, `黄金ETF：${point.goldClose == null ? '—' : formatNumber(point.goldClose, 3)}`)}
-          ${tipRow(COLOR_USD, `美元指数：${point.usdIndex == null ? '—' : formatNumber(point.usdIndex, 2)}`)}
+          ${rows.join('')}
         </div>`
       },
     },
@@ -139,8 +198,8 @@ const chartOption = computed(() => {
       start: zoomStart.value,
       end: zoomEnd.value,
       accentColor: COLOR_GOLD,
-      left: narrow.value ? 8 : 52,
-      right: narrow.value ? 8 : 52,
+      left: narrow.value ? 8 : leftPad,
+      right: narrow.value ? 8 : rightPad,
       narrow: narrow.value,
     }),
     xAxis: {
@@ -158,55 +217,24 @@ const chartOption = computed(() => {
     yAxis: [
       {
         type: 'value',
-        name: '金价',
+        name: showGold ? '金价' : '',
+        show: showGold,
         scale: true,
         nameTextStyle: { color: COLOR_GOLD, fontSize: 11 },
-        splitLine: { lineStyle: { color: '#f1f5f9' } },
+        splitLine: { show: showGold, lineStyle: { color: '#f1f5f9' } },
         axisLabel: { color: '#94a3b8', fontSize: 11 },
       },
       {
         type: 'value',
-        name: '美元指数',
+        name: showUsd ? '美元指数' : '',
+        show: showUsd,
         scale: true,
         nameTextStyle: { color: COLOR_USD, fontSize: 11 },
-        splitLine: { show: false },
+        splitLine: { show: !showGold && showUsd, lineStyle: { color: '#f1f5f9' } },
         axisLabel: { color: '#94a3b8', fontSize: 11 },
       },
     ],
-    series: [
-      {
-        name: '黄金ETF',
-        type: 'line',
-        yAxisIndex: 0,
-        data: gold,
-        showSymbol: false,
-        lineStyle: { color: COLOR_GOLD, width: 2 },
-        itemStyle: { color: COLOR_GOLD },
-        areaStyle: {
-          color: {
-            type: 'linear',
-            x: 0,
-            y: 0,
-            x2: 0,
-            y2: 1,
-            colorStops: [
-              { offset: 0, color: 'rgba(217,119,6,0.16)' },
-              { offset: 1, color: 'rgba(217,119,6,0.02)' },
-            ],
-          },
-        },
-      },
-      {
-        name: '美元指数',
-        type: 'line',
-        yAxisIndex: 1,
-        data: usd,
-        showSymbol: false,
-        connectNulls: false,
-        lineStyle: { color: COLOR_USD, width: 2 },
-        itemStyle: { color: COLOR_USD },
-      },
-    ],
+    series,
   }
 })
 
@@ -308,14 +336,26 @@ onMounted(() => {
 
       <div class="chart-toolbar">
         <div class="legend">
-          <span class="legend-item">
+          <button
+            type="button"
+            class="legend-item"
+            :class="{ off: !visible('gold') }"
+            title="点击显隐"
+            @click="toggle('gold')"
+          >
             <i class="legend-line gold" />
             黄金ETF
-          </span>
-          <span class="legend-item">
+          </button>
+          <button
+            type="button"
+            class="legend-item"
+            :class="{ off: !visible('usd') }"
+            title="点击显隐"
+            @click="toggle('usd')"
+          >
             <i class="legend-line blue" />
             美元指数
-          </span>
+          </button>
         </div>
         <div class="toolbar-right">
           <el-button size="small" :disabled="!isZoomed" :icon="RefreshRight" @click="resetZoom">
@@ -496,8 +536,20 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: #64748b;
   font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.legend-item.off {
+  opacity: 0.38;
+  text-decoration: line-through;
+  text-decoration-color: #94a3b8;
 }
 
 .legend-line {
