@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-20T10:03:49.996Z",
+  "updatedAt": "2026-11-20T10:09:06.104Z",
   "days": {
     "2010-01-04": {
       "brentClose": 80.12,
@@ -21807,9 +21807,9 @@
       "usdIndex": 103.94
     },
     "2026-11-20": {
-      "brentClose": 90.27,
-      "wtiClose": 80.98,
-      "usdIndex": 103.79
+      "brentClose": 90.12,
+      "wtiClose": 80.83,
+      "usdIndex": 103.83
     },
     "2010-09-11": {
       "brentClose": null,
