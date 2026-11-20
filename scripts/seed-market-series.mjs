@@ -251,19 +251,67 @@ async function seedGold() {
   console.log(`[gold] saved ${n} days (SHAU ${nShau}, Au9999 ${nAu}, XAU ${nXau}) → ${file}`)
 }
 
+async function seedOil() {
+  const file = path.join(DIR, 'oil.json')
+  const cache = await readCache(file)
+  cache.days = cache.days || {}
+  const end = new Date()
+  const endC = `${end.getFullYear()}${String(end.getMonth() + 1).padStart(2, '0')}${String(end.getDate()).padStart(2, '0')}`
+  const beg = '20100104'
+  console.log(`[oil] fetching Brent + WTI + UDI → ${endC}`)
+  const brent = await emCloseMap('112.B00Y', beg, endC)
+  await sleep(200)
+  const wti = await emCloseMap('102.CL00Y', beg, endC)
+  await sleep(200)
+  const usd = await emCloseMap('100.UDI', beg, endC)
+
+  const touch = (date) => {
+    if (!cache.days[date]) {
+      cache.days[date] = { brentClose: null, wtiClose: null, usdIndex: null }
+    } else {
+      if (cache.days[date].brentClose === undefined) cache.days[date].brentClose = null
+      if (cache.days[date].wtiClose === undefined) cache.days[date].wtiClose = null
+    }
+    return cache.days[date]
+  }
+
+  for (const [date, close] of brent) {
+    const day = touch(date)
+    day.brentClose = Math.round(close * 100) / 100
+  }
+  for (const [date, close] of wti) {
+    const day = touch(date)
+    day.wtiClose = Math.round(close * 100) / 100
+  }
+  for (const [date, close] of usd) {
+    const day = cache.days[date]
+    if (!day) continue
+    day.usdIndex = Math.round(close * 100) / 100
+  }
+  cache.updatedAt = new Date().toISOString()
+  await writeCache(file, cache)
+  const n = Object.keys(cache.days).length
+  const nBrent = Object.values(cache.days).filter((d) => d.brentClose != null).length
+  const nWti = Object.values(cache.days).filter((d) => d.wtiClose != null).length
+  console.log(`[oil] saved ${n} days (Brent ${nBrent}, WTI ${nWti}) → ${file}`)
+}
+
 const only = (process.argv[2] || '').toLowerCase()
 if (!only || only === 'all') {
   await seedTurnover()
   await seedMargin()
   await seedGold()
+  await seedOil()
 } else if (only === 'gold') {
   await seedGold()
+} else if (only === 'oil') {
+  await seedOil()
 } else if (only === 'turnover') {
   await seedTurnover()
 } else if (only === 'margin') {
   await seedMargin()
 } else {
-  console.error(`unknown target: ${only} (use gold | turnover | margin | all)`)
+  console.error(`unknown target: ${only} (use gold | oil | turnover | margin | all)`)
   process.exit(1)
 }
 console.log('done')

@@ -102,6 +102,27 @@ export interface GoldSeriesResult {
   note?: string
 }
 
+/** 石油观察日频：布伦特 + WTI + 美元指数 */
+export interface OilDaily {
+  date: string
+  /** 布伦特原油当月连续（美元/桶） */
+  brentClose: number | null
+  /** NYMEX 原油连续 / WTI 代理（美元/桶） */
+  wtiClose: number | null
+  /** 美元指数；日历错位可为 null */
+  usdIndex: number | null
+}
+
+export interface OilSeriesResult {
+  series: OilDaily[]
+  asOf: string
+  latestBrentClose: number | null
+  latestWtiClose: number | null
+  latestUsdIndex: number | null
+  warnings?: string[]
+  note?: string
+}
+
 /** 单只 ETF 日净流入（申赎代理） */
 export interface EtfFlowDaily {
   date: string

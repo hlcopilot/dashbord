@@ -42,6 +42,7 @@ alwaysApply: true
 | 成交额 | `data/series/turnover.json` | `series:turnover` · `/api/turnover/series` |
 | 两融 | `data/series/margin.json` | `series:margin` · `/api/margin/series` |
 | 黄金 | `data/series/gold.json` | `series:gold` · `/api/gold/series` |
+| 石油 | `data/series/oil.json` | `series:oil` · `/api/oil/series` |
 | ETF（20 只宽基 + 可选 518880） | `data/etf-share/{code}.json` | `etfcache:{code}` · `/api/etf/flow?code=` |
 | 分时 | `data/intraday/*.json` | `day:YYYY-MM-DD` · `/api/local/intraday*` |
 | ETF 分钟 K（须提交 Git；全篮子） | `data/etf-intraday/{code}/*.json` | `etfintra:{code}:{date}` · `/api/local/etf-intraday*` · `etf:intraday:seed` |

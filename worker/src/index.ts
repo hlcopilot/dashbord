@@ -4,7 +4,8 @@
  * - 成交额分时归档（KV day:，对应 data/intraday）
  * - ETF 分钟 K 归档（KV etfintra:，对应 data/etf-intraday）
  * - ETF 申赎净流入（沪/深交易所份额 + 东财日 K）
- * - 黄金观察日频（518880 + 美元指数 UDI）
+ * - 黄金观察日频（518880 + SHAU / Au9999 / XAU + UDI）
+ * - 石油观察日频（布伦特 B00Y + WTI CL00Y + UDI）
  */
 
 import {
@@ -24,6 +25,10 @@ import {
   buildMarginSeries,
   normalizeMarginCache,
 } from '../../margin-series-core'
+import {
+  buildOilSeries,
+  normalizeOilCache,
+} from '../../oil-series-core'
 import {
   buildTurnoverSeries,
   normalizeTurnoverCache,
@@ -540,6 +545,28 @@ async function handleGoldSeries(env: Env): Promise<Response> {
   }
 }
 
+async function handleOilSeries(env: Env): Promise<Response> {
+  const kv = env.INTRADAY_KV
+  const key = 'series:oil'
+  try {
+    const result = await buildOilSeries({
+      fetchCloseMap: fetchEmCloseMap,
+      async loadCache() {
+        if (!kv) return normalizeOilCache(null)
+        const raw = await kv.get(key)
+        return normalizeOilCache(raw ? JSON.parse(raw) : null)
+      },
+      async saveCache(cache) {
+        if (!kv) return
+        await kv.put(key, JSON.stringify(cache))
+      },
+    })
+    return json(result)
+  } catch (e) {
+    return json({ message: e instanceof Error ? e.message : String(e) }, 502)
+  }
+}
+
 async function handleApi(request: Request, env: Env): Promise<Response> {
   const pathname = new URL(request.url).pathname
 
@@ -572,6 +599,11 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
   if (pathname === '/api/gold/series') {
     if (request.method !== 'GET') return json({ message: 'method not allowed' }, 405)
     return handleGoldSeries(env)
+  }
+
+  if (pathname === '/api/oil/series') {
+    if (request.method !== 'GET') return json({ message: 'method not allowed' }, 405)
+    return handleOilSeries(env)
   }
 
   const rule = PROXY_RULES.find((r) => pathname === r.prefix || pathname.startsWith(`${r.prefix}/`))

@@ -19,6 +19,7 @@
 | 成交额主图 | `GET /api/turnover/series` | `data/series/turnover.json` | `series:turnover` | 搜狐 `hisHq` 上证+深成 | `start/end` 从近端重叠日起 | 前端读 API → 可选补今日虚线点 → `sliceByRange` |
 | 两融主图 | `GET /api/margin/series` | `data/series/margin.json` | `series:margin` | 东财 `RPTA_RZRQ_LSHJ` + 搜狐上证 | 倒序分页至缓存重叠早停；上证按日期窗口 | 前端读 API → `sliceMarginByRange` |
 | 黄金观察 | `GET /api/gold/series` | `data/series/gold.json` | `series:gold` | 东财日 K：`1.518880` + `118.SHAU` + `118.AU9999` + `122.XAU` + `100.UDI` | 近端约 5 日窗口重拉合并 | `ShanghaiGoldCard` / `LondonGoldCard` / `GoldPriceCard` → `sliceGoldByRange` |
+| 石油观察 | `GET /api/oil/series` | `data/series/oil.json` | `series:oil` | 东财日 K：`112.B00Y` + `102.CL00Y` + `100.UDI` | 近端约 5 日窗口重拉合并 | `OilPriceCard` → `sliceOilByRange` |
 | ETF 净流入（20 只宽基 + 黄金 518880） | `GET /api/etf/flow?code=` | `data/etf-share/{code}.json` | `etfcache:{code}` | 沪：上交所份额；深：深交所 `scsj_fund_jjgm`；东财日 K | 缺日份额 + 近端 T+1 重试；K 线对齐 closes | 宽基 `EtfFlowSection`；黄金区单独挂 `518880`（不进 20 篮筛选） |
 | ETF 当日分钟 K | `/api/local/etf-intraday/{code}*` + 东财代理 | `data/etf-intraday/{code}/*.json` | `etfintra:{code}:{date}` | 东财 1 分钟 K（最新日）+ trends2（近约 5 日） | 打开弹层同步近 5 日写回，更早靠归档积累 | 右键/长按日 → `EtfIntradayDialog` |
 | 成交额分时 | `/api/local/intraday*` | `data/intraday/*.json` | `day:YYYY-MM-DD` | 东财 trends2 近约 5 日 | 远端近 5 日覆盖写回，更早保留本地 | `syncIntradayArchive` 合并后再画 |
@@ -45,6 +46,14 @@
 - **净流入**：复用 `/api/etf/flow?code=518880`；元数据在 `gold-etf.ts` / `getEtfByCode` EXTRA，**不并入** 20 只宽基 `ETF_UNIVERSE`。
 - **画图**：`GoldSection`（上海金卡 + ETF 价卡 + 净流入卡）→ `fetchGoldSeries` / `fetchEtfFlowSeries`。
 - **Seed**：`npm run series:seed`（含 gold.json）；份额 `npm run etf:seed -- 518880`；云端 `cf:series:seed` 含 `series:gold`。
+
+## 石油观察
+
+- **缓存字段**：`days[date].{ brentClose, wtiClose, usdIndex }`（`oil-series-core.ts`）。
+- **上游**：`112.B00Y`（布伦特当月连续，美元/桶）、`102.CL00Y`（NYMEX 原油连续 / WTI，美元/桶）、`100.UDI`（美元指数）。
+- **增量**：各序列近约 5 日窗口重拉；冷启动 `20100104`。
+- **画图**：`OilSection` → `OilPriceCard` → `fetchOilSeries` → `sliceOilByRange`。
+- **Seed**：`npm run series:seed`（含 oil）或 `npm run series:seed -- oil`；云端 `cf:series:seed` 含 `series:oil`。
 
 ## ETF 净流入
 

@@ -85,5 +85,6 @@ Agent 约束见仓库 `.cursor/rules/h5-mobile.mdc`（与本文同步维护）�
 | 分时入口 + 长按 | `src/components/TurnoverPercentileCard.vue` |
 | 分时弹层 | `src/components/IntradayTurnoverDialog.vue` |
 | 黄金观察 | `src/components/GoldSection.vue` / `ShanghaiGoldCard.vue` / `LondonGoldCard.vue` / `GoldPriceCard.vue` |
+| 石油观察 | `src/components/OilSection.vue` / `OilPriceCard.vue` |
 | 全局菜单 / sheet | `src/styles/global.css`（`.ctx-menu` / `--sheet`） |
 | Agent 规则 | `.cursor/rules/h5-mobile.mdc` |

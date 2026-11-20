@@ -39,6 +39,7 @@ const jobs = [
   { key: 'series:turnover', file: path.join(root, 'data/series/turnover.json') },
   { key: 'series:margin', file: path.join(root, 'data/series/margin.json') },
   { key: 'series:gold', file: path.join(root, 'data/series/gold.json') },
+  { key: 'series:oil', file: path.join(root, 'data/series/oil.json') },
 ]
 
 const etfDir = path.join(root, 'data/etf-share')
