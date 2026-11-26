@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-20T10:20:02.676Z",
+  "updatedAt": "2026-11-26T01:36:00.490Z",
   "days": {
     "2013-07-29": {
       "goldClose": 2.626,
@@ -22657,8 +22657,8 @@
       "goldClose": 7.282,
       "shauClose": 765.76,
       "au9999Close": 764.55,
-      "xauClose": 3577.76,
-      "usdIndex": 103.87
+      "xauClose": 3548.5,
+      "usdIndex": 103.84
     },
     "2024-02-09": {
       "goldClose": null,
@@ -28707,6 +28707,27 @@
       "au9999Close": 252.99,
       "xauClose": 1243.33,
       "usdIndex": 80.63
+    },
+    "2026-11-23": {
+      "goldClose": 7.396,
+      "shauClose": 779.52,
+      "au9999Close": 781.4,
+      "xauClose": 3635.45,
+      "usdIndex": 104.33
+    },
+    "2026-11-24": {
+      "goldClose": 7.391,
+      "shauClose": 777.76,
+      "au9999Close": 777.72,
+      "xauClose": 3556.16,
+      "usdIndex": 103.83
+    },
+    "2026-11-25": {
+      "goldClose": 7.169,
+      "shauClose": 755.85,
+      "au9999Close": 757.35,
+      "xauClose": 3588.78,
+      "usdIndex": 103.7
     }
   }
 }

@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-20T09:56:48.362Z",
+  "updatedAt": "2026-11-26T10:34:00.989Z",
   "days": {
     "2010-06-01": {
       "cybClose": 973.23,
@@ -24000,6 +24000,30 @@
       "divClose": 5529.78,
       "cybPe": 49.3,
       "divPe": 13.31
+    },
+    "2026-11-23": {
+      "cybClose": 2280.2,
+      "divClose": 5492.17,
+      "cybPe": 51.33,
+      "divPe": 13.23
+    },
+    "2026-11-24": {
+      "cybClose": 2278.99,
+      "divClose": 5447.88,
+      "cybPe": 51.42,
+      "divPe": 13.1
+    },
+    "2026-11-25": {
+      "cybClose": 2183.58,
+      "divClose": 5423.75,
+      "cybPe": 48.83,
+      "divPe": 13.03
+    },
+    "2026-11-26": {
+      "cybClose": null,
+      "divClose": null,
+      "cybPe": 48.73,
+      "divPe": 13.14
     }
   }
 }

@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-20T10:19:57.818Z",
+  "updatedAt": "2026-11-26T06:06:47.516Z",
   "days": {
     "2010-01-04": {
       "brentClose": 80.12,
@@ -21807,9 +21807,9 @@
       "usdIndex": 103.94
     },
     "2026-11-20": {
-      "brentClose": 90.29,
-      "wtiClose": 81.09,
-      "usdIndex": 103.86
+      "brentClose": 92.59,
+      "wtiClose": 83.62,
+      "usdIndex": 103.84
     },
     "2010-09-11": {
       "brentClose": null,
@@ -21845,6 +21845,21 @@
       "brentClose": null,
       "wtiClose": 58.35,
       "usdIndex": 93.25
+    },
+    "2026-11-23": {
+      "brentClose": 89.33,
+      "wtiClose": 80.25,
+      "usdIndex": 104.33
+    },
+    "2026-11-24": {
+      "brentClose": 88.38,
+      "wtiClose": 81.69,
+      "usdIndex": 103.83
+    },
+    "2026-11-25": {
+      "brentClose": 90.64,
+      "wtiClose": 84.15,
+      "usdIndex": 103.7
     }
   }
 }

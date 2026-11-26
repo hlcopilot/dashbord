@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-20T10:09:01.981Z",
+  "updatedAt": "2026-11-26T01:35:51.035Z",
   "days": {
     "2026-11-10": {
       "marginYi": 22945.61,
@@ -24246,6 +24246,30 @@
       "financingYi": 21927.43,
       "securitiesYi": 295.42,
       "sseClose": 3577.62
+    },
+    "2026-11-20": {
+      "marginYi": 21797.96,
+      "financingYi": 21508.62,
+      "securitiesYi": 289.34,
+      "sseClose": 3533.79
+    },
+    "2026-11-23": {
+      "marginYi": 21711.35,
+      "financingYi": 21419.38,
+      "securitiesYi": 291.97,
+      "sseClose": 3538.95
+    },
+    "2026-11-24": {
+      "marginYi": 21717.77,
+      "financingYi": 21422,
+      "securitiesYi": 295.77,
+      "sseClose": 3548.37
+    },
+    "2026-11-25": {
+      "marginYi": 21504.16,
+      "financingYi": 21213.86,
+      "securitiesYi": 290.3,
+      "sseClose": 3476.47
     }
   }
 }
